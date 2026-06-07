@@ -18,7 +18,11 @@ func main() {
 		baseURL = "https://starcat.app"
 	}
 
-	storeFile := "data.json"
+	// 数据文件路径: 优先读取 STORE_FILE, 缺省使用当前目录的 data.json (本地开发默认)
+	storeFile := os.Getenv("STORE_FILE")
+	if storeFile == "" {
+		storeFile = "data.json"
+	}
 
 	// 初始化存储
 	s, err := store.NewMemoryStore(storeFile)
@@ -41,6 +45,10 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/share", shareHandler.HandleCreateShare)
 	mux.HandleFunc("GET /s/{id}", shareHandler.HandleViewShare)
+	// 健康检查: Fly.io http_service.checks 用, 固定返回 200
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 
 	// 启动服务
 	port := os.Getenv("PORT")
