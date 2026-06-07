@@ -28,7 +28,7 @@ body:
       description: 触发 Bug 的具体步骤
       placeholder: |
         1. 启动服务 `go run main.go`
-        2. 执行 `curl -X POST http://localhost:8080/api/share -d '{...}'`
+        2. 执行 `curl -X POST http://localhost:5001/api/share -d '{...}'`
         3. 观察到返回错误
     validations:
       required: true
