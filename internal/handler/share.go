@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"starcat-sharing-api/internal/model"
-	"starcat-sharing-api/internal/store"
+	"github.com/dong4j/starcat-sharing-api/internal/model"
+	"github.com/dong4j/starcat-sharing-api/internal/store"
 )
 
 // ShareHandler 处理分享相关的 HTTP 请求

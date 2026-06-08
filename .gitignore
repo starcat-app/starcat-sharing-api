@@ -5,6 +5,7 @@
 /bin/
 /build/
 /dist/
+/starcat-sharing-api
 *.exe
 *.exe~
 *.dll

@@ -8,7 +8,7 @@ import (
 	"os"
 	"sync"
 
-	"starcat-sharing-api/internal/model"
+	"github.com/dong4j/starcat-sharing-api/internal/model"
 )
 
 // MemoryStore 基于内存 + JSON 文件的并发安全存储

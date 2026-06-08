@@ -1,7 +1,7 @@
 # ===========================================
 # Stage 1: 构建阶段
 # ===========================================
-# 与 github-trending-api 保持一致的多阶段构建
+# 与 starcat-trending-api / starcat-weekly-api 保持一致的多阶段构建
 # Go 版本由项目 go.mod 决定 (1.25.0)
 FROM golang:1.25-alpine AS builder
 
@@ -53,7 +53,7 @@ USER app
 # 暴露端口 (与 main.go 默认 5001 一致)
 EXPOSE 5001
 
-# 健康检查 (与 fly.toml [[http_service.checks]] 保持一致: 30s/5s/10s grace)
+# 健康检查 (与 main.go /healthz 端点对齐: 30s/5s/10s grace)
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget --quiet --tries=1 --spider http://localhost:5001/healthz || exit 1
 
