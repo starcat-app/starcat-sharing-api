@@ -8,23 +8,23 @@ import (
 	"net/http"
 	"time"
 
-	"starcat-sharing-api/internal/model"
-	"starcat-sharing-api/internal/store"
+	"github.com/dong4j/starcat-sharing-api/internal/model"
+	"github.com/dong4j/starcat-sharing-api/internal/store"
 )
 
 // ShareHandler 处理分享相关的 HTTP 请求
 type ShareHandler struct {
-	store    *store.MemoryStore
+	store     *store.MemoryStore
 	templates *template.Template
-	baseURL  string
+	baseURL   string
 }
 
 // NewShareHandler 创建分享处理器
 func NewShareHandler(s *store.MemoryStore, t *template.Template, baseURL string) *ShareHandler {
 	return &ShareHandler{
-		store:    s,
+		store:     s,
 		templates: t,
-		baseURL:  baseURL,
+		baseURL:   baseURL,
 	}
 }
 

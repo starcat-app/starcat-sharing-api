@@ -1,37 +1,39 @@
-// Package main 是 starcat-sharing-api 程序的入口点
+// Package main is the entry point for starcat-sharing-api.
+// It serves a share-link API: POST creates, GET renders, /healthz probes.
 package main
 
 import (
-	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
-	"starcat-sharing-api/internal/handler"
-	"starcat-sharing-api/internal/store"
+	"github.com/dong4j/starcat-sharing-api/internal/handler"
+	"github.com/dong4j/starcat-sharing-api/internal/store"
 )
 
 func main() {
-	// 初始化配置
+	// Configuration
 	baseURL := os.Getenv("BASE_URL")
 	if baseURL == "" {
 		baseURL = "https://starcat.ink"
 	}
 
-	// 数据文件路径: 优先读取 STORE_FILE, 缺省使用当前目录的 data.json (本地开发默认)
+	// Data file path: prefer STORE_FILE env var, fall back to current directory
 	storeFile := os.Getenv("STORE_FILE")
 	if storeFile == "" {
 		storeFile = "data.json"
 	}
 
-	// 初始化存储
+	// Initialize store
 	s, err := store.NewMemoryStore(storeFile)
 	if err != nil {
 		log.Fatalf("Failed to initialize store: %v", err)
 	}
 
-	// 加载模板
+	// Load templates
 	var templates *template.Template
 	if tmpl, err := template.ParseGlob("templates/*.html"); err != nil {
 		log.Fatalf("Failed to parse templates: %v", err)
@@ -39,47 +41,41 @@ func main() {
 		templates = tmpl
 	}
 
-	// 初始化处理器
+	// Initialize handler
 	shareHandler := handler.NewShareHandler(s, templates, baseURL)
 
-	// 注册路由
+	// Register routes (Go 1.22+ style: custom mux + method-aware paths)
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /", rootHandler)
 	mux.HandleFunc("POST /api/share", shareHandler.HandleCreateShare)
 	mux.HandleFunc("GET /s/{id}", shareHandler.HandleViewShare)
-	// 健康检查: Fly.io http_service.checks 用, 固定返回 200
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	mux.HandleFunc("GET /healthz", healthzHandler)
 
-	// 启动服务
+	// Configuration: PORT env var
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "5001"
 	}
 
-	log.Printf("Starting server on port %s...", port)
+	// Graceful shutdown on SIGINT / SIGTERM
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		<-sigCh
+		log.Println("Received shutdown signal, closing service...")
+		os.Exit(0)
+	}()
+
+	// Start HTTP server
+	log.Printf("starcat-sharing-api starting on port %s", port)
+	log.Printf("Endpoints:")
+	log.Printf("  POST /api/share    - Create share link")
+	log.Printf("  GET  /s/{id}       - View share page")
+	log.Printf("  GET  /healthz      - Health check")
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 
-// rootHandler 服务首页 / 健康探活
-// 风格与 github-trending-api 的 rootHandler 保持一致:
-// 1. 路径必须精确是 "/" 否则 404 (避免掩盖未知路由)
-// 2. 返回 JSON, 方便浏览器和 curl 都能用
-// 附带可用路由列表, 方便手动测试时一眼看清楚能调什么
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	json.NewEncoder(w).Encode(map[string]any{
-		"service": "starcat-sharing-api",
-		"status":  "ok",
-		"endpoints": map[string]string{
-			"create_share": "POST /api/share",
-			"view_share":   "GET /s/{id}",
-			"health":       "GET /healthz",
-		},
-	})
+// healthzHandler health check (used by Fly.io http_service.checks)
+func healthzHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
 }

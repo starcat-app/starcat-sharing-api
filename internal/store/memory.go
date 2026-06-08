@@ -8,14 +8,14 @@ import (
 	"os"
 	"sync"
 
-	"starcat-sharing-api/internal/model"
+	"github.com/dong4j/starcat-sharing-api/internal/model"
 )
 
 // MemoryStore 基于内存 + JSON 文件的并发安全存储
 type MemoryStore struct {
-	mu    sync.RWMutex
-	data  map[string]model.ShareData
-	file  string
+	mu   sync.RWMutex
+	data map[string]model.ShareData
+	file string
 }
 
 // NewMemoryStore 创建新的内存存储实例

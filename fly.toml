@@ -2,6 +2,8 @@
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
+# 与 starcat-trending-api / starcat-weekly-api 保持一致的 Fly.io 部署配置
+# (端口、env、health check 等参照其他两个项目对齐)
 
 app = 'starcat-sharing-api'
 primary_region = 'nrt'
