@@ -38,10 +38,21 @@ type ShareRepoRequest struct {
 	AISummary ShareAISummaryDTO `json:"aiSummary"`
 }
 
-// ShareResponseDTO 分享响应 DTO
+// ShareResponseDTO 分享响应 DTO。
+// R-01 v1.2: 扩 shareId + createdAt 字段，expiresAt 改为 nullable 指针。
 type ShareResponseDTO struct {
-	ShareUrl  string `json:"shareUrl"`
-	ExpiresAt string `json:"expiresAt"`
+	ShareURL  string     `json:"shareUrl"`
+	ShareID   string     `json:"shareId"`
+	ExpiresAt *time.Time `json:"expiresAt"`
+	CreatedAt time.Time  `json:"createdAt"`
+}
+
+// ShareCreateResponse 是 POST /api/v1/share 的 data 内 payload。
+type ShareCreateResponse struct {
+	ShareURL  string     `json:"shareUrl"`
+	ShareID   string     `json:"shareId"`
+	ExpiresAt *time.Time `json:"expiresAt"`
+	CreatedAt time.Time  `json:"createdAt"`
 }
 
 // ShareData 分享数据完整结构

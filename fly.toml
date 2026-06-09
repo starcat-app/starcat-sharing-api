@@ -14,7 +14,6 @@ primary_region = 'nrt'
   GOGC = '100'
   GOMAXPROCS = '1'
   PORT = '5001'
-  STORE_FILE = '/data/data.json'
 
 [processes]
   app = './server'

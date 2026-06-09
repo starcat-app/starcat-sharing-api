@@ -1,51 +1,50 @@
 # Starcat Sharing API
 
-这是 Starcat 应用的后端服务，主要提供 AI 分享页面的生成和托管功能。
+Starcat 应用的后端服务，提供 AI 分享页面的生成和托管功能。
+
+> **R-01 v1.2**（2026-06-09）：存储从 JSON 文件迁移到 SQLite，加 Bearer Token 鉴权，API 升级到 `/api/v1/*`。
 
 ## 功能特性
 
-- **分享链接生成**：接收来自客户端的 Repo 数据和 AI 摘要，生成唯一的分享链接 (`POST /api/share`)。
-- **分享页面渲染**：通过短链接访问时，使用 Go 原生 `html/template` 结合 Tailwind CSS 渲染响应式的精美分享页面 (`GET /s/{id}`)。
-- **数据持久化**：使用基于内存的并发安全 Map，并自动将数据落盘到本地的 `data.json` 文件中，实现轻量级存储。
+- **分享链接生成**：接收 Repo 数据和 AI 摘要，生成唯一短链接（`POST /api/v1/share`，需鉴权）
+- **分享页面渲染**：通过短链接访问时，Go `html/template` + Tailwind CSS 渲染分享页面（`GET /s/{id}`，公开）
+- **数据持久化**：SQLite（WAL 模式），替代旧的 `data.json` 文件存储
 
 ## 快速开始
 
 ### 环境要求
 
-- Go 1.23+
+- Go 1.25+
 
-### 运行服务
-
-进入 `starcat-sharing-api` 目录并启动服务：
+### 本地运行
 
 ```bash
+cp .env.example .env
+# 编辑 .env，填入 API_KEYS（用 ../scripts/gen-api-key.sh 生成）
 cd starcat-sharing-api
-go run main.go
+go run ./cmd/server/
 ```
 
-默认情况下，服务会在 `5001` 端口启动，并在控制台输出日志。
+默认端口 `5001`。
 
-### 环境变量配置
+### .env 配置
 
-你可以通过配置环境变量来覆盖默认行为：
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `PORT` | 服务端口 | `5001` |
+| `STORE_FILE` | SQLite 数据库路径 | `./sharing.db` |
+| `BASE_URL` | 短链基础 URL | `http://localhost:5001` |
+| `API_KEYS` | Bearer Token 白名单（逗号分隔） | 必填 |
 
-- `PORT`: 服务监听的本地端口，默认为 `5001`。
-- `BASE_URL`: 分享链接的基础域名，默认为 `https://starcat.app`。可以在本地测试时配置为 `http://localhost:5001`。
+## API 接口
 
-例如：
-```bash
-PORT=3000 BASE_URL=http://localhost:3000 go run main.go
-```
+所有数据接口需要 `Authorization: Bearer <api-key>` 头。
 
-## API 接口文档
+### `POST /api/v1/share`（需鉴权）
 
-### 1. 创建分享链接
+创建分享链接。
 
-**请求端点**: `POST /api/share`
-
-**请求格式**: `application/json`
-
-**请求体示例**:
+**请求体**：
 
 ```json
 {
@@ -55,39 +54,62 @@ PORT=3000 BASE_URL=http://localhost:3000 go run main.go
     "language": "Swift",
     "starsCount": 12345,
     "forksCount": 1234,
-    "topics": ["swift", "macos", "ios"],
+    "topics": ["swift", "macos"],
     "homepage": "https://example.com",
     "url": "https://github.com/owner/repo"
   },
   "aiSummary": {
-    "oneLiner": "AI 生成的一句话总结",
-    "summary": "这是由 AI 对该开源项目进行的详细分析和总结...",
+    "oneLiner": "AI 一句话总结",
+    "summary": "详细分析...",
     "platforms": ["macOS", "iOS"],
-    "suitableFor": ["适合需要快速开发 UI 的开发者", "适合学习 Swift 现代特性的团队"],
-    "strengths": ["架构清晰，代码可读性高", "活跃的开源社区支持"],
-    "risks": ["目前处于早期版本，API 可能发生变动"],
-    "suggestedTags": [
-      {"name": "SwiftUI", "confidence": 0.95},
-    ]
+    "suitableFor": ["适合..."],
+    "strengths": ["优势..."],
+    "risks": ["风险..."],
+    "suggestedTags": [{"name": "SwiftUI", "confidence": 0.95}]
   }
 }
 ```
 
-**响应格式**: `application/json`
-
-**响应体示例**:
+**响应 200**：
 
 ```json
 {
-  "shareUrl": "https://starcat.app/s/aBcD1234",
-  "expiresAt": "2026-07-04T00:00:00Z"
+  "schema_version": 1,
+  "data": {
+    "shareUrl": "https://starcat.ink/s/aBc1d2eF",
+    "shareId": "aBc1d2eF",
+    "expiresAt": null,
+    "createdAt": "2026-06-09T12:00:00Z"
+  }
 }
 ```
 
-*注：默认每个分享链接的有效期为自生成起 1 个月。*
+### `GET /s/{id}`（公开）
 
-### 2. 访问分享视图
+访问分享页面，返回渲染后的 HTML。不存在则返回 404。
 
-**请求端点**: `GET /s/{id}`
+### `GET /healthz`（公开）
 
-**响应**: 返回渲染后的 HTML 页面。如果给定的 `id` 不存在或已过期，则返回 HTTP 404 (Not Found)。
+健康检查，返回 `ok`。
+
+## 鉴权
+
+所有 `/api/v1/*` 端点需要 `Authorization: Bearer <api-key>` 头。API Key 通过 `API_KEYS` 环境变量配置（逗号分隔多个 key）。
+
+生成新 key：
+
+```bash
+bash ../scripts/gen-api-key.sh
+```
+
+## 部署（Fly.io）
+
+```bash
+fly secrets set \
+  API_KEYS="sk-starcat-prodKey1,sk-starcat-prodKey2" \
+  BASE_URL="https://starcat.ink" \
+  STORE_FILE="/data/sharing.db" \
+  -a starcat-sharing-api
+
+fly deploy -a starcat-sharing-api
+```

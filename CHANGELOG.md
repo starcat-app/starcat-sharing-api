@@ -7,6 +7,25 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-06-09
+
+### Added
+- Bearer Token 鉴权（`Authorization: Bearer <api-key>`），所有 `/api/v1/*` 端点强制鉴权
+- SQLite 持久化存储（替代内存 + JSON 文件），支持 WAL 模式
+- `.env` 配置文件支持（godotenv）
+- Schema migration 机制（`PRAGMA user_version`）
+- Envelope 统一响应格式（`schema_version` + `data` / `error`）
+
+### Changed
+- **Breaking**: `POST /api/share` → `POST /api/v1/share`（旧路径直接删除）
+- **Breaking**: 存储从 `data.json` 迁移到 SQLite，旧数据不做迁移
+- **Breaking**: 所有 `/api/v1/*` 端点需携带 Bearer Token
+- `GET /s/{id}` 仍保留（公开，不鉴权）
+
+### Removed
+- `POST /api/share` 旧端点
+- `internal/store/memory.go`（内存 + JSON 文件存储）
+
 ## [1.0.0] - 2026-06-08
 
 ### Added
