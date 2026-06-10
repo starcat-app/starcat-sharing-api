@@ -46,26 +46,28 @@ go run ./cmd/server/
 
 **请求体**：
 
+> R-01 P1-3b（2026-06-10）：所有 JSON 字段名统一为 snake_case，与 trending-api / weekly-api 风格一致。
+
 ```json
 {
   "repo": {
-    "fullName": "owner/repo",
+    "full_name": "owner/repo",
     "description": "项目描述...",
     "language": "Swift",
-    "starsCount": 12345,
-    "forksCount": 1234,
+    "stars_count": 12345,
+    "forks_count": 1234,
     "topics": ["swift", "macos"],
     "homepage": "https://example.com",
     "url": "https://github.com/owner/repo"
   },
-  "aiSummary": {
-    "oneLiner": "AI 一句话总结",
+  "ai_summary": {
+    "one_liner": "AI 一句话总结",
     "summary": "详细分析...",
     "platforms": ["macOS", "iOS"],
-    "suitableFor": ["适合..."],
+    "suitable_for": ["适合..."],
     "strengths": ["优势..."],
     "risks": ["风险..."],
-    "suggestedTags": [{"name": "SwiftUI", "confidence": 0.95}]
+    "suggested_tags": [{"name": "SwiftUI", "confidence": 0.95}]
   }
 }
 ```
@@ -76,10 +78,10 @@ go run ./cmd/server/
 {
   "schema_version": 1,
   "data": {
-    "shareUrl": "https://starcat.ink/s/aBc1d2eF",
-    "shareId": "aBc1d2eF",
-    "expiresAt": null,
-    "createdAt": "2026-06-09T12:00:00Z"
+    "share_url": "https://starcat.ink/s/aBc1d2eF",
+    "share_id": "aBc1d2eF",
+    "expires_at": null,
+    "created_at": "2026-06-09T12:00:00Z"
   }
 }
 ```

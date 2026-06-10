@@ -86,12 +86,20 @@ func (s *SQLiteStore) Get(id string) (*model.ShareData, error) {
 	}
 
 	// 反序列化业务数据
-	var repo model.ShareRepoDTO
-	if err := json.Unmarshal([]byte(repoJSON), &repo); err != nil {
+	//
+	// R-01 P1-3b（2026-06-10）：JSON tag 已从 camelCase 改 snake_case，但
+	// SQLite 里历史 blob 可能是老 camelCase 格式（v1.2 上线后 → P1 修订前
+	// 写入的分享记录）。Go encoding/json 严格匹配 tag，老 blob 用新 model
+	// 直接 Unmarshal 会得到全零值（不报错但所有字段空）。
+	//
+	// 兜底策略：先按 model 解，再做 zero-value 检测；若是老格式，fallback
+	// 用 legacy shadow struct（camelCase tag）二次解码。
+	repo, err := decodeShareRepoCompat(repoJSON)
+	if err != nil {
 		return nil, err
 	}
-	var aiSummary model.ShareAISummaryDTO
-	if err := json.Unmarshal([]byte(aiSummaryJSON), &aiSummary); err != nil {
+	aiSummary, err := decodeAISummaryCompat(aiSummaryJSON)
+	if err != nil {
 		return nil, err
 	}
 
@@ -123,4 +131,99 @@ func (s *SQLiteStore) Get(id string) (*model.ShareData, error) {
 // Close 关闭数据库连接。
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()
+}
+
+// MARK: - 历史 camelCase JSON blob 兼容（R-01 P1-3b 2026-06-10）
+
+// legacyShareRepoDTO 与 model.ShareRepoDTO 字段一致，但 JSON tag 是 P1 修订前的 camelCase。
+// 用于反序列化 SQLite 中历史写入的旧格式 blob。
+type legacyShareRepoDTO struct {
+	FullName    string   `json:"fullName"`
+	Description *string  `json:"description"`
+	Language    *string  `json:"language"`
+	StarsCount  int      `json:"starsCount"`
+	ForksCount  int      `json:"forksCount"`
+	Topics      []string `json:"topics"`
+	Homepage    *string  `json:"homepage"`
+	URL         string   `json:"url"`
+}
+
+// legacyAISummaryDTO 与 model.ShareAISummaryDTO 字段一致，但 JSON tag 是 P1 修订前的 camelCase。
+type legacyAISummaryDTO struct {
+	OneLiner      string              `json:"oneLiner"`
+	Summary       string              `json:"summary"`
+	Platforms     []string            `json:"platforms"`
+	SuitableFor   []string            `json:"suitableFor"`
+	Strengths     []string            `json:"strengths"`
+	Risks         []string            `json:"risks"`
+	SuggestedTags []model.ShareTagDTO `json:"suggestedTags"`
+}
+
+// decodeShareRepoCompat 反序列化 ShareRepoDTO，自动兼容新旧格式。
+//
+// 策略：先按新 model（snake_case）解；若 FullName 为空（高概率是老 camelCase blob
+// 用新 tag 解出全零值），fallback 用 legacyShareRepoDTO 重解，复制字段。
+//
+// 为什么用「FullName 是否为空」做判断而不是先解 legacy 再 fallback：
+// 1. FullName 在业务语义里**永不为空**（前端必填 owner/repo），可作为「解析有效性」哨兵
+// 2. 新格式优先：避免每次成功路径都解两次 JSON（性能）
+func decodeShareRepoCompat(blob string) (model.ShareRepoDTO, error) {
+	var repo model.ShareRepoDTO
+	if err := json.Unmarshal([]byte(blob), &repo); err != nil {
+		return repo, err
+	}
+	if repo.FullName != "" {
+		return repo, nil
+	}
+
+	// fallback：尝试 legacy camelCase 解析
+	var legacy legacyShareRepoDTO
+	if err := json.Unmarshal([]byte(blob), &legacy); err != nil {
+		return repo, err
+	}
+	if legacy.FullName == "" {
+		// 都解不到 FullName，可能是真的空数据，按解出的零值返回
+		return repo, nil
+	}
+	log.Printf("[store] decoded legacy camelCase ShareRepoDTO blob (full_name=%s); 建议运行 migration 升级 blob", legacy.FullName)
+	return model.ShareRepoDTO{
+		FullName:    legacy.FullName,
+		Description: legacy.Description,
+		Language:    legacy.Language,
+		StarsCount:  legacy.StarsCount,
+		ForksCount:  legacy.ForksCount,
+		Topics:      legacy.Topics,
+		Homepage:    legacy.Homepage,
+		URL:         legacy.URL,
+	}, nil
+}
+
+// decodeAISummaryCompat 同 decodeShareRepoCompat，但作用于 ShareAISummaryDTO。
+// 哨兵字段用 OneLiner（业务语义必填）。
+func decodeAISummaryCompat(blob string) (model.ShareAISummaryDTO, error) {
+	var summary model.ShareAISummaryDTO
+	if err := json.Unmarshal([]byte(blob), &summary); err != nil {
+		return summary, err
+	}
+	if summary.OneLiner != "" {
+		return summary, nil
+	}
+
+	var legacy legacyAISummaryDTO
+	if err := json.Unmarshal([]byte(blob), &legacy); err != nil {
+		return summary, err
+	}
+	if legacy.OneLiner == "" {
+		return summary, nil
+	}
+	log.Printf("[store] decoded legacy camelCase ShareAISummaryDTO blob; 建议运行 migration 升级 blob")
+	return model.ShareAISummaryDTO{
+		OneLiner:      legacy.OneLiner,
+		Summary:       legacy.Summary,
+		Platforms:     legacy.Platforms,
+		SuitableFor:   legacy.SuitableFor,
+		Strengths:     legacy.Strengths,
+		Risks:         legacy.Risks,
+		SuggestedTags: legacy.SuggestedTags,
+	}, nil
 }
