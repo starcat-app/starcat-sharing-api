@@ -3,7 +3,6 @@
 # 自动检查并提交依赖更新 PR
 # https://docs.github.com/en/code-security/dependabot
 #
-# 与 starcat-trending-api 保持一致的配置:
 # - Go 模块依赖: 周一上午 9 点 (Asia/Shanghai) 检查
 # - GitHub Actions 依赖: 同上
 # ===========================================
