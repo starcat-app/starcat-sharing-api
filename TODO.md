@@ -25,5 +25,3 @@
 - [ ] **version 包冗余**：`internal/version/version.go` 定义了 `Version = "1.0.0"`，但无代码引用。考虑在 `main.go` 启动日志中打印版本号或删除。
 
 ## 低优
-
-- [ ] **部署阶段 1 周验收**（方案 §9.2）：`fly logs` 无 panic、SQLite 增长 < 1MB/周、鉴权失败 < 5%、旧 `data.json` 不被读取。
