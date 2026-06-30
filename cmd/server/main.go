@@ -98,7 +98,8 @@ func main() {
 	log.Printf("  POST /api/v1/share  - Create share link (auth required)")
 	log.Printf("  GET  /s/{id}        - View share page (public)")
 	log.Printf("  GET  /healthz       - Health check (public)")
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	handler := middleware.CORS(mux)
+	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
 
 // healthzHandler Fly.io health check 用。
