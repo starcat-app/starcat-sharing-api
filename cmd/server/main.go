@@ -81,6 +81,7 @@ func main() {
 	// 在 middleware 后面挂——同时验证服务可达 + Bearer Key 正确。详见 handler/ping.go。
 	mux.Handle("GET /api/v1/ping", authMW.Wrap(handler.HandlePingV1("sharing")))
 	mux.Handle("POST /api/v1/share", authMW.Wrap(http.HandlerFunc(shareHandler.HandleCreateShareV1)))
+	mux.Handle("GET /internal/stats", authMW.Wrap(handler.HandleStats(sqliteStore)))
 
 	// 优雅关闭
 	go func() {
@@ -96,6 +97,7 @@ func main() {
 	log.Printf("Endpoints:")
 	log.Printf("  GET  /api/v1/ping   - Connectivity probe for Starcat client (auth required)")
 	log.Printf("  POST /api/v1/share  - Create share link (auth required)")
+	log.Printf("  GET  /internal/stats - Share statistics (auth required)")
 	log.Printf("  GET  /s/{id}        - View share page (public)")
 	log.Printf("  GET  /healthz       - Health check (public)")
 	handler := middleware.CORS(mux)

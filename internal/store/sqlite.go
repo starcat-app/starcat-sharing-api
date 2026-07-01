@@ -128,6 +128,15 @@ func (s *SQLiteStore) Get(id string) (*model.ShareData, error) {
 	}, nil
 }
 
+// CountShares 返回当前分享记录总数。
+func (s *SQLiteStore) CountShares() (int, error) {
+	var count int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM shares`).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // Close 关闭数据库连接。
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()

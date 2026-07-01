@@ -19,6 +19,12 @@ type Store interface {
 	// Get 按 id 获取分享数据。未找到返回 nil。
 	Get(id string) (*model.ShareData, error)
 
+	// CountShares 返回当前 shares 表中的分享记录总数。
+	//
+	// 本地 admin 面板只需要真实总量，不读取 payload 明细，避免为了统计把
+	// repo_json / ai_summary_json 拉出来反序列化。
+	CountShares() (int, error)
+
 	// Close 关闭数据库连接。
 	Close() error
 }
