@@ -53,59 +53,59 @@ brew install --cask starcat
 > Starcat provides hosted defaults for normal users. This API is open source so advanced users can inspect it, run it locally, or deploy their own instance.
 <!-- starcat-promo:end -->
 
-Starcat 应用的后端服务，提供 AI 分享页面的生成和托管功能。
+Backend service for the Starcat app that generates and hosts AI-powered share pages.
 
-> **R-01 v1.2**（2026-06-09）：存储从 JSON 文件迁移到 SQLite，加 Bearer Token 鉴权，API 升级到 `/api/v1/*`。
+> **R-01 v1.2** (2026-06-09): Migrated storage from JSON files to SQLite, added Bearer Token authentication, and upgraded the API to `/api/v1/*`.
 
-## 功能特性
+## Features
 
-- **分享链接生成**：接收 Repo 数据和 AI 摘要，生成唯一短链接（`POST /api/v1/share`，需鉴权）
-- **分享页面渲染**：通过短链接访问时，Go `html/template` + Tailwind CSS 渲染分享页面（`GET /s/{id}`，公开）
-- **数据持久化**：SQLite（WAL 模式），替代旧的 `data.json` 文件存储
+- **Share link generation**: Accepts repository data and AI summaries and generates unique short links (`POST /api/v1/share`, authentication required)
+- **Share page rendering**: Renders share pages with Go `html/template` and Tailwind CSS when a short link is opened (`GET /s/{id}`, public)
+- **Data persistence**: Uses SQLite in WAL mode instead of the legacy `data.json` file
 
-## 快速开始
+## Quick Start
 
-### 环境要求
+### Requirements
 
 - Go 1.25+
 
-### 本地运行
+### Run Locally
 
 ```bash
 cp .env.example .env
-# 编辑 .env，填入 API_KEYS（用 ../scripts/gen-api-key.sh 生成）
+# Edit .env and set API_KEYS (generate keys with ../scripts/gen-api-key.sh)
 cd starcat-sharing-api
 go run ./cmd/server/
 ```
 
-默认端口 `5001`。
+The default port is `5001`.
 
-### .env 配置
+### .env Configuration
 
-| 变量 | 说明 | 默认值 |
+| Variable | Description | Default |
 |------|------|--------|
-| `PORT` | 服务端口 | `5001` |
-| `STORE_FILE` | SQLite 数据库路径 | `./sharing.db` |
-| `BASE_URL` | 短链基础 URL | `http://localhost:5001` |
-| `API_KEYS` | Bearer Token 白名单（逗号分隔） | 必填 |
+| `PORT` | Server port | `5001` |
+| `STORE_FILE` | SQLite database path | `./sharing.db` |
+| `BASE_URL` | Base URL for short links | `http://localhost:5001` |
+| `API_KEYS` | Bearer Token allowlist (comma-separated) | Required |
 
-## API 接口
+## API Endpoints
 
-所有数据接口需要 `Authorization: Bearer <api-key>` 头。
+All data endpoints require the `Authorization: Bearer <api-key>` header.
 
-### `POST /api/v1/share`（需鉴权）
+### `POST /api/v1/share` (Authentication Required)
 
-创建分享链接。
+Creates a share link.
 
-**请求体**：
+**Request body**:
 
-> R-01 P1-3b（2026-06-10）：所有 JSON 字段名统一为 snake_case，与 trending-api / weekly-api 风格一致。
+> R-01 P1-3b (2026-06-10): All JSON field names use snake_case, consistent with trending-api and weekly-api.
 
 ```json
 {
   "repo": {
     "full_name": "owner/repo",
-    "description": "项目描述...",
+    "description": "Project description...",
     "language": "Swift",
     "stars_count": 12345,
     "forks_count": 1234,
@@ -114,18 +114,18 @@ go run ./cmd/server/
     "url": "https://github.com/owner/repo"
   },
   "ai_summary": {
-    "one_liner": "AI 一句话总结",
-    "summary": "详细分析...",
+    "one_liner": "One-sentence AI summary",
+    "summary": "Detailed analysis...",
     "platforms": ["macOS", "iOS"],
-    "suitable_for": ["适合..."],
-    "strengths": ["优势..."],
-    "risks": ["风险..."],
+    "suitable_for": ["Suitable for..."],
+    "strengths": ["Strength..."],
+    "risks": ["Risk..."],
     "suggested_tags": [{"name": "SwiftUI", "confidence": 0.95}]
   }
 }
 ```
 
-**响应 200**：
+**Response 200**:
 
 ```json
 {
@@ -139,25 +139,25 @@ go run ./cmd/server/
 }
 ```
 
-### `GET /s/{id}`（公开）
+### `GET /s/{id}` (Public)
 
-访问分享页面，返回渲染后的 HTML。不存在则返回 404。
+Returns the rendered HTML share page. Returns 404 if the share does not exist.
 
-### `GET /healthz`（公开）
+### `GET /healthz` (Public)
 
-健康检查，返回 `ok`。
+Health check that returns `ok`.
 
-## 鉴权
+## Authentication
 
-所有 `/api/v1/*` 端点需要 `Authorization: Bearer <api-key>` 头。API Key 通过 `API_KEYS` 环境变量配置（逗号分隔多个 key）。
+All `/api/v1/*` endpoints require the `Authorization: Bearer <api-key>` header. Configure API keys with the `API_KEYS` environment variable as a comma-separated list.
 
-生成新 key：
+Generate a new key:
 
 ```bash
 bash ../scripts/gen-api-key.sh
 ```
 
-## 部署（Fly.io）
+## Deployment (Fly.io)
 
 ```bash
 fly secrets set \
