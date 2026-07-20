@@ -14,9 +14,9 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"github.com/dong4j/starcat-sharing-api/internal/handler"
-	"github.com/dong4j/starcat-sharing-api/internal/middleware"
-	"github.com/dong4j/starcat-sharing-api/internal/store"
+	"github.com/starcat-app/starcat-sharing-api/internal/handler"
+	"github.com/starcat-app/starcat-sharing-api/internal/middleware"
+	"github.com/starcat-app/starcat-sharing-api/internal/store"
 )
 
 func main() {

@@ -8,7 +8,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/dong4j/starcat-sharing-api/internal/model"
+	"github.com/starcat-app/starcat-sharing-api/internal/model"
 )
 
 // SQLiteStore 基于 SQLite 的分享数据持久化实现。

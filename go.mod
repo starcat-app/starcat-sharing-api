@@ -1,4 +1,4 @@
-module github.com/dong4j/starcat-sharing-api
+module github.com/starcat-app/starcat-sharing-api
 
 go 1.25.0
 

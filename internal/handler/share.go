@@ -11,8 +11,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dong4j/starcat-sharing-api/internal/model"
-	"github.com/dong4j/starcat-sharing-api/internal/store"
+	"github.com/starcat-app/starcat-sharing-api/internal/model"
+	"github.com/starcat-app/starcat-sharing-api/internal/store"
 )
 
 // ShareHandler 处理分享相关的 HTTP 请求。

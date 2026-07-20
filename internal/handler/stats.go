@@ -4,7 +4,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/dong4j/starcat-sharing-api/internal/store"
+	"github.com/starcat-app/starcat-sharing-api/internal/store"
 )
 
 // SharingStatsResponse 是 GET /internal/stats 的 data 结构。

@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/dong4j/starcat-sharing-api/internal/model"
+	"github.com/starcat-app/starcat-sharing-api/internal/model"
 )
 
 // Store 定义分享数据访问接口。

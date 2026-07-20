@@ -52,7 +52,7 @@
 - 贡献指南和变更日志
 - 内部版本号包 (`internal/version`, 暴露 `version.Version` 常量)
 
-[Unreleased]: https://github.com/dong4j/starcat-sharing-api/compare/v2.0.1...HEAD
-[2.0.1]: https://github.com/dong4j/starcat-sharing-api/compare/v2.0.0...v2.0.1
-[2.0.0]: https://github.com/dong4j/starcat-sharing-api/compare/v1.0.0...v2.0.0
-[1.0.0]: https://github.com/dong4j/starcat-sharing-api/releases/tag/v1.0.0
+[Unreleased]: https://github.com/starcat-app/starcat-sharing-api/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/starcat-app/starcat-sharing-api/compare/v2.0.0...v2.0.1
+[2.0.0]: https://github.com/starcat-app/starcat-sharing-api/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/starcat-app/starcat-sharing-api/releases/tag/v1.0.0
