@@ -28,6 +28,8 @@ import (
 	"github.com/starcat-app/starcat-sharing-api/internal/render"
 )
 
+const repositoryOGLayoutVersion = "2"
+
 var (
 	ownerPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
 	repoPattern  = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}$`)
@@ -136,7 +138,9 @@ func (h *RepositoryHandler) makePageData(repository model.RepositoryPreview, ava
 
 	ogImage := *h.baseURL
 	ogImage.Path = "/og/repo/" + repository.Owner + "/" + repository.Name + ".png"
-	revision := strconv.FormatInt(repository.ID, 10)
+	// rev 同时包含布局版本和仓库更新时间：仓库数据变化或 OG 视觉升级都会生成
+	// 新 URL，避免聊天平台长期复用旧版图片缓存。
+	revision := "v" + repositoryOGLayoutVersion + "-" + strconv.FormatInt(repository.ID, 10)
 	if !repository.UpdatedAt.IsZero() {
 		revision += "-" + strconv.FormatInt(repository.UpdatedAt.Unix(), 10)
 	}

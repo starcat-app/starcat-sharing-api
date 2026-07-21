@@ -100,6 +100,9 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler)
 	mux.HandleFunc("GET /s/{id}", shareHandler.HandleRenderShare)
+	// 品牌图标放在已由 Nginx 转发的 /r/ 下，确保官网反代、Fly 直连和本地预览
+	// 都由同一服务响应，不依赖外部静态目录。
+	mux.HandleFunc("GET /r/starcat-logo.png", starcatLogoHandler)
 	mux.HandleFunc("GET /r/{owner}/{repo}", repositoryHandler.HandleRepositoryPage)
 	// Go ServeMux wildcard 必须占完整 segment，因此 `.png` 后缀由 handler 校验。
 	mux.HandleFunc("GET /og/repo/{owner}/{repo}", repositoryHandler.HandleRepositoryOG)
@@ -136,4 +139,11 @@ func main() {
 func healthzHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("ok"))
+}
+
+// starcatLogoHandler 提供网页与 favicon 共用的正式 Starcat App Icon。
+func starcatLogoHandler(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
+	w.Write(render.StarcatLogoPNG())
 }

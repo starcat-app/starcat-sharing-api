@@ -6,6 +6,7 @@
   <title>{{.Title}}</title>
   <meta name="description" content="{{.Description}}">
   <link rel="canonical" href="{{.CanonicalURL}}">
+  <link rel="icon" type="image/png" href="/r/starcat-logo.png">
 
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Starcat">
@@ -24,15 +25,15 @@
   <style>
     :root {
       color-scheme: dark;
-      --ink: #f6f8ff;
-      --muted: #aebad3;
-      --quiet: #7485a8;
-      --blue: #4f8cff;
-      --blue-strong: #2470ff;
-      --line: rgba(130, 170, 255, .2);
-      --panel: rgba(13, 23, 43, .88);
-      --panel-strong: #101d35;
-      --background: #050b18;
+      --ink: #f5f7fb;
+      --muted: #a9b4c9;
+      --quiet: #72809b;
+      --blue: #2f7df6;
+      --blue-hover: #428cff;
+      --line: rgba(151, 172, 211, .18);
+      --line-strong: rgba(126, 167, 244, .3);
+      --surface: rgba(13, 22, 39, .94);
+      --surface-raised: rgba(255, 255, 255, .045);
     }
 
     * { box-sizing: border-box; }
@@ -42,231 +43,278 @@
       min-height: 100vh;
       color: var(--ink);
       background:
-        radial-gradient(circle at 82% 14%, rgba(38, 112, 255, .2), transparent 33rem),
-        linear-gradient(145deg, #040914 0%, #071126 48%, #091832 100%);
-      font-family: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+        radial-gradient(circle at 78% 4%, rgba(47, 125, 246, .13), transparent 31rem),
+        #070d18;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
       -webkit-font-smoothing: antialiased;
     }
 
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      opacity: .25;
-      background-image:
-        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
-      background-size: 32px 32px;
-      mask-image: linear-gradient(to bottom, black, transparent 78%);
-    }
-
     .shell {
-      width: min(960px, calc(100% - 40px));
+      width: min(980px, calc(100% - 40px));
       margin: 0 auto;
-      padding: 42px 0 56px;
+      padding: 34px 0 46px;
     }
 
     .masthead {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 74px;
+      gap: 24px;
+      margin-bottom: 42px;
     }
 
     .brand {
       display: inline-flex;
       align-items: center;
-      gap: 11px;
+      gap: 12px;
       color: var(--ink);
       text-decoration: none;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: .11em;
-      text-transform: uppercase;
     }
 
-    .brand-mark {
-      display: grid;
-      place-items: center;
-      width: 31px;
-      height: 31px;
-      border-radius: 50%;
-      color: white;
-      background: var(--blue-strong);
-      box-shadow: 0 0 0 5px rgba(36, 112, 255, .1);
+    .brand-logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, .28);
+    }
+
+    .brand-copy { display: grid; gap: 2px; }
+
+    .brand-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    .brand-context {
+      color: var(--quiet);
+      font-size: 12px;
     }
 
     .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
       color: var(--quiet);
-      font: 600 12px/1.2 "SFMono-Regular", Consolas, monospace;
-      letter-spacing: .08em;
-      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #3fb950;
+      box-shadow: 0 0 0 3px rgba(63, 185, 80, .1);
     }
 
     .repo-card {
-      position: relative;
       overflow: hidden;
-      padding: clamp(28px, 5vw, 58px);
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      background: linear-gradient(145deg, rgba(17, 31, 57, .96), rgba(9, 18, 36, .94));
-      box-shadow: 0 34px 90px rgba(0, 0, 0, .34);
+      border: 1px solid var(--line-strong);
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .3);
     }
 
-    .repo-card::after {
-      content: "";
-      position: absolute;
-      width: 280px;
-      height: 280px;
-      top: -170px;
-      right: -110px;
-      border: 1px solid rgba(100, 158, 255, .18);
-      border-radius: 50%;
-      box-shadow: 0 0 0 44px rgba(87, 145, 255, .035), 0 0 0 88px rgba(87, 145, 255, .025);
-    }
+    .repo-content { padding: clamp(26px, 5vw, 46px); }
 
     .identity {
-      position: relative;
-      z-index: 1;
       display: grid;
-      grid-template-columns: 92px minmax(0, 1fr);
-      gap: 28px;
+      grid-template-columns: 68px minmax(0, 1fr);
+      gap: 22px;
       align-items: start;
     }
 
     .avatar {
-      width: 92px;
-      height: 92px;
+      width: 68px;
+      height: 68px;
+      border: 1px solid rgba(255, 255, 255, .14);
       border-radius: 50%;
       object-fit: cover;
-      border: 1px solid rgba(255,255,255,.16);
-      background: #163365;
+      background: #152640;
+      box-shadow: 0 8px 22px rgba(0, 0, 0, .2);
     }
 
     .avatar-fallback {
       display: grid;
       place-items: center;
-      font: 700 34px/1 "Iowan Old Style", Georgia, serif;
-      color: #dce8ff;
+      color: #dce7fb;
+      font-size: 25px;
+      font-weight: 700;
+    }
+
+    .repo-owner {
+      margin: 1px 0 7px;
+      color: #83aefb;
+      font-size: 13px;
+      font-weight: 600;
     }
 
     h1 {
-      max-width: 720px;
       margin: 0;
       overflow-wrap: anywhere;
-      font: 600 clamp(34px, 6vw, 62px)/1.03 "Iowan Old Style", Georgia, serif;
+      font-size: clamp(30px, 5vw, 46px);
+      font-weight: 700;
+      line-height: 1.1;
       letter-spacing: -.035em;
     }
 
     .description {
-      max-width: 680px;
-      margin: 20px 0 0;
+      max-width: 760px;
+      margin: 22px 0 0;
       color: var(--muted);
-      font-size: clamp(15px, 2vw, 18px);
-      line-height: 1.7;
+      font-size: 16px;
+      line-height: 1.65;
     }
 
     .meta {
-      position: relative;
-      z-index: 1;
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-top: 42px;
+      margin-top: 30px;
     }
 
     .datum {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      min-height: 34px;
+      min-height: 36px;
       padding: 0 12px;
-      border: 1px solid rgba(133, 171, 242, .16);
+      border: 1px solid var(--line);
       border-radius: 8px;
-      color: #d8e3fa;
-      background: rgba(255,255,255,.035);
-      font: 600 12px/1 "SFMono-Regular", Consolas, monospace;
-      letter-spacing: .025em;
+      color: #d8e0ee;
+      background: var(--surface-raised);
+      font-size: 13px;
+      font-weight: 500;
     }
 
+    .datum strong {
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .datum svg {
+      width: 16px;
+      height: 16px;
+      color: #91a4c4;
+      fill: currentColor;
+      flex: none;
+    }
+
+    .datum.quiet { color: var(--quiet); }
+
     .dot {
-      width: 8px;
-      height: 8px;
+      width: 10px;
+      height: 10px;
+      flex: none;
+      border: 1px solid rgba(255, 255, 255, .18);
       border-radius: 50%;
-      background: #4f8cff;
+      background: #2f81f7;
+    }
+
+    /* 常见语言使用 GitHub 用户熟悉的颜色；未列出的语言保留 Starcat 蓝。 */
+    .datum[data-language="Swift"] .dot { background: #f05138; }
+    .datum[data-language="Go"] .dot { background: #00add8; }
+    .datum[data-language="JavaScript"] .dot { background: #f1e05a; }
+    .datum[data-language="TypeScript"] .dot { background: #3178c6; }
+    .datum[data-language="Python"] .dot { background: #3572a5; }
+    .datum[data-language="Rust"] .dot { background: #dea584; }
+    .datum[data-language="Kotlin"] .dot { background: #a97bff; }
+    .datum[data-language="Java"] .dot { background: #b07219; }
+    .datum[data-language="C++"] .dot { background: #f34b7d; }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 18px clamp(26px, 5vw, 46px);
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, .018);
     }
 
     .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 26px;
+      gap: 10px;
     }
 
     .button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 44px;
-      padding: 0 18px;
-      border: 1px solid rgba(137, 174, 243, .22);
-      border-radius: 9px;
+      min-height: 40px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
       color: var(--ink);
-      background: rgba(255,255,255,.045);
-      font-size: 14px;
-      font-weight: 700;
+      background: rgba(255, 255, 255, .035);
+      font-size: 13px;
+      font-weight: 650;
       text-decoration: none;
-      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      transition: border-color .16s ease, background .16s ease, transform .16s ease;
     }
 
     .button.primary {
-      border-color: var(--blue-strong);
-      background: var(--blue-strong);
-      box-shadow: 0 12px 30px rgba(36,112,255,.25);
+      border-color: var(--blue);
+      background: var(--blue);
+      box-shadow: 0 8px 22px rgba(47, 125, 246, .2);
     }
 
     .button:hover {
       transform: translateY(-1px);
-      border-color: rgba(137, 174, 243, .55);
-      background: rgba(255,255,255,.08);
+      border-color: rgba(137, 174, 243, .48);
+      background: rgba(255, 255, 255, .075);
     }
 
-    .button.primary:hover { background: #3b7dff; }
+    .button.primary:hover { background: var(--blue-hover); }
+
+    .github-note {
+      color: var(--quiet);
+      font-size: 12px;
+      white-space: nowrap;
+    }
 
     .unavailable {
-      margin-top: 22px;
+      margin: 26px 0 0;
       padding: 12px 14px;
-      border-left: 3px solid #ff9f43;
-      color: #f2d6b6;
-      background: rgba(255, 159, 67, .08);
-      font-size: 14px;
-      line-height: 1.5;
+      border: 1px solid rgba(255, 159, 67, .24);
+      border-radius: 8px;
+      color: #edc99e;
+      background: rgba(255, 159, 67, .07);
+      font-size: 13px;
+      line-height: 1.55;
     }
 
     footer {
       display: flex;
       justify-content: space-between;
       gap: 24px;
-      margin-top: 24px;
+      margin-top: 18px;
       color: var(--quiet);
       font-size: 12px;
+      line-height: 1.5;
     }
 
-    footer a { color: #91b7ff; text-decoration: none; }
+    footer a { color: #83aefb; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
 
-    @media (max-width: 640px) {
-      .shell { width: min(100% - 24px, 960px); padding-top: 24px; }
-      .masthead { margin-bottom: 34px; }
+    @media (max-width: 680px) {
+      .shell { width: min(100% - 24px, 980px); padding: 20px 0 30px; }
+      .masthead { margin-bottom: 24px; }
       .eyebrow { display: none; }
-      .repo-card { border-radius: 17px; }
-      .identity { grid-template-columns: 58px minmax(0, 1fr); gap: 18px; }
-      .avatar { width: 58px; height: 58px; }
-      .description { margin-top: 14px; }
-      .meta { margin-top: 28px; }
-      .actions { flex-direction: column; }
+      .repo-card { border-radius: 14px; }
+      .identity { grid-template-columns: 52px minmax(0, 1fr); gap: 16px; }
+      .avatar { width: 52px; height: 52px; }
+      .repo-owner { margin-top: 0; }
+      .description { margin-top: 18px; font-size: 15px; }
+      .meta { margin-top: 24px; }
+      .card-footer { align-items: stretch; flex-direction: column; }
+      .actions { display: grid; }
       .button { width: 100%; }
-      footer { flex-direction: column; gap: 8px; }
+      .github-note { text-align: center; white-space: normal; }
+      footer { flex-direction: column; gap: 6px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -278,43 +326,62 @@
   <main class="shell">
     <header class="masthead">
       <a class="brand" href="https://starcat.ink" aria-label="Starcat home">
-        <span class="brand-mark" aria-hidden="true">★</span>
-        <span>Starcat</span>
+        <img class="brand-logo" src="/r/starcat-logo.png" alt="" width="42" height="42">
+        <span class="brand-copy">
+          <span class="brand-name">Starcat</span>
+          <span class="brand-context">Repository Share</span>
+        </span>
       </a>
-      <span class="eyebrow">Repository field note / public metadata</span>
+      <span class="eyebrow">Public repository metadata</span>
     </header>
 
     <article class="repo-card">
-      <div class="identity">
-        {{if .Repository.AvatarURL}}
-          <img class="avatar" src="{{.Repository.AvatarURL}}" alt="{{.Repository.Owner}} avatar" width="92" height="92">
-        {{else}}
-          <div class="avatar avatar-fallback" aria-hidden="true">★</div>
-        {{end}}
-        <div>
-          <h1>{{.Repository.FullName}}</h1>
-          <p class="description">{{.Description}}</p>
+      <div class="repo-content">
+        <div class="identity">
+          {{if .Repository.AvatarURL}}
+            <img class="avatar" src="{{.Repository.AvatarURL}}" alt="{{.Repository.Owner}} avatar" width="68" height="68">
+          {{else}}
+            <div class="avatar avatar-fallback" aria-hidden="true">{{if .Repository.Owner}}{{slice .Repository.Owner 0 1}}{{else}}?{{end}}</div>
+          {{end}}
+          <div>
+            <p class="repo-owner">github.com/{{.Repository.Owner}}</p>
+            <h1>{{.Repository.Name}}</h1>
+          </div>
         </div>
+        <p class="description">{{.Description}}</p>
+
+        {{if .Available}}
+        <div class="meta" aria-label="Repository statistics">
+          {{if .Repository.Language}}
+          <span class="datum" data-language="{{.Repository.Language}}"><span class="dot" aria-hidden="true"></span><strong>{{.Repository.Language}}</strong></span>
+          {{else}}
+          <span class="datum quiet"><span class="dot" aria-hidden="true"></span>Language not detected</span>
+          {{end}}
+          <span class="datum">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 .75a.75.75 0 0 1 .67.414l1.77 3.586 3.958.575a.75.75 0 0 1 .416 1.279l-2.864 2.792.676 3.942a.75.75 0 0 1-1.088.79L8 12.268l-3.54 1.86a.75.75 0 0 1-1.088-.79l.676-3.942-2.864-2.792A.75.75 0 0 1 1.6 5.325l3.958-.575 1.77-3.586A.75.75 0 0 1 8 .75Z"/></svg>
+            <strong>{{.StarsText}}</strong> stars
+          </span>
+          <span class="datum">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.75 3.5a2.25 2.25 0 1 1-1.5-2.122v5.37A2.25 2.25 0 0 0 6.5 9h3.75V7.372a2.25 2.25 0 1 1 1.5 0V9.75a.75.75 0 0 1-.75.75H6.5a3.75 3.75 0 0 1-3.75-3.75V3.5a2.25 2.25 0 0 1 3-2.122A2.25 2.25 0 0 1 5.75 3.5Zm6-2.25a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm-8.25 1.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"/></svg>
+            <strong>{{.ForksText}}</strong> forks
+          </span>
+          {{if .Repository.Archived}}<span class="datum">Archived</span>{{end}}
+          {{if .Repository.Template}}<span class="datum">Template</span>{{end}}
+        </div>
+        {{else}}
+        <p class="unavailable">This repository does not exist or is not publicly available. Starcat does not reveal whether a private repository exists.</p>
+        {{end}}
       </div>
 
-      {{if .Available}}
-      <div class="meta" aria-label="Repository statistics">
-        {{if .Repository.Language}}<span class="datum"><span class="dot"></span>{{.Repository.Language}}</span>{{end}}
-        <span class="datum">★ {{.StarsText}}</span>
-        <span class="datum">FORK {{.ForksText}}</span>
-        {{if .Repository.Archived}}<span class="datum">ARCHIVED</span>{{end}}
-        {{if .Repository.Template}}<span class="datum">TEMPLATE</span>{{end}}
+      <div class="card-footer">
+        <nav class="actions" aria-label="Repository actions">
+          {{if .Available}}<a class="button primary" href="{{.OpenAppURL}}">Open in Starcat</a>{{end}}
+          {{if .GitHubURL}}<a class="button" href="{{.GitHubURL}}" rel="noopener noreferrer">View on GitHub</a>{{end}}
+          <a class="button" href="{{.DownloadURL}}">Download Starcat</a>
+        </nav>
+        <span class="github-note">Live public data from GitHub</span>
       </div>
-      {{else}}
-      <p class="unavailable">This repository does not exist or is not publicly available. Starcat does not reveal whether a private repository exists.</p>
-      {{end}}
     </article>
-
-    <nav class="actions" aria-label="Repository actions">
-      {{if .Available}}<a class="button primary" href="{{.OpenAppURL}}">Open in Starcat</a>{{end}}
-      {{if .GitHubURL}}<a class="button" href="{{.GitHubURL}}" rel="noopener noreferrer">View on GitHub</a>{{end}}
-      <a class="button" href="{{.DownloadURL}}">Download Starcat</a>
-    </nav>
 
     <footer>
       <span>Shared with Starcat. No notes, tags, or account data are included.</span>

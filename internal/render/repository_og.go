@@ -6,6 +6,7 @@ package render
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"image"
 	"image/color"
@@ -29,6 +30,18 @@ const (
 	ogHeight = 640
 )
 
+// starcatLogoPNG 与官网使用同一份正式 App Icon。将它嵌入二进制可避免 OG crawler
+// 请求期间再依赖外部静态资源，也保证 Fly.io 与本地渲染结果一致。
+//
+//go:embed starcat-logo.png
+var starcatLogoPNG []byte
+
+// StarcatLogoPNG 返回只读内嵌品牌资源，供公开分享页复用同一份正式图标。
+// 调用方只应写入 HTTP response，不应修改返回的底层 bytes。
+func StarcatLogoPNG() []byte {
+	return starcatLogoPNG
+}
+
 // RepositoryOGRenderer 是 handler 可替换测试的 PNG renderer。
 type RepositoryOGRenderer interface {
 	Render(repository model.RepositoryPreview, avatar image.Image) ([]byte, error)
@@ -40,10 +53,15 @@ type OGRenderer struct {
 	descriptionFace font.Face
 	metaFace        font.Face
 	brandFace       font.Face
+	brandLogo       image.Image
 }
 
 // NewOGRenderer 创建纯 Go 字体 renderer。
 func NewOGRenderer() (*OGRenderer, error) {
+	brandLogo, err := png.Decode(bytes.NewReader(starcatLogoPNG))
+	if err != nil {
+		return nil, fmt.Errorf("decode embedded Starcat logo: %w", err)
+	}
 	regular, err := opentype.Parse(goregular.TTF)
 	if err != nil {
 		return nil, fmt.Errorf("parse regular font: %w", err)
@@ -55,7 +73,7 @@ func NewOGRenderer() (*OGRenderer, error) {
 	newFace := func(parsed *opentype.Font, size float64) (font.Face, error) {
 		return opentype.NewFace(parsed, &opentype.FaceOptions{Size: size, DPI: 144, Hinting: font.HintingFull})
 	}
-	titleFace, err := newFace(bold, 34)
+	titleFace, err := newFace(bold, 30)
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +94,7 @@ func NewOGRenderer() (*OGRenderer, error) {
 		descriptionFace: descriptionFace,
 		metaFace:        metaFace,
 		brandFace:       brandFace,
+		brandLogo:       brandLogo,
 	}, nil
 }
 
@@ -84,46 +103,59 @@ func (r *OGRenderer) Render(repository model.RepositoryPreview, avatar image.Ima
 	canvas := image.NewRGBA(image.Rect(0, 0, ogWidth, ogHeight))
 	drawBackground(canvas)
 	drawConstellation(canvas)
-	drawRoundedPanel(canvas, image.Rect(54, 48, 1226, 592), 28, color.RGBA{14, 23, 43, 238})
-	drawPanelBorder(canvas, image.Rect(54, 48, 1226, 592), color.RGBA{87, 142, 255, 90})
+	drawRoundedPanel(canvas, image.Rect(54, 48, 1226, 592), 24, color.RGBA{13, 22, 39, 246})
+	drawPanelBorder(canvas, image.Rect(54, 48, 1226, 592), color.RGBA{111, 151, 226, 82})
 
-	drawCircle(canvas, image.Pt(112, 105), 17, color.RGBA{34, 116, 255, 255})
-	drawStarGlyph(canvas, image.Pt(112, 105), 10, color.RGBA{255, 255, 255, 255})
-	r.drawText(canvas, r.brandFace, color.RGBA{226, 235, 255, 255}, 142, 116, "STARCAT / REPOSITORY FIELD NOTE")
+	drawImageFit(canvas, r.brandLogo, image.Rect(88, 76, 152, 140))
+	r.drawText(canvas, r.brandFace, color.RGBA{241, 246, 255, 255}, 172, 103, "STARCAT")
+	r.drawText(canvas, r.metaFace, color.RGBA{119, 139, 176, 255}, 172, 132, "Repository Share")
+	visibilityLabel := "PUBLIC REPOSITORY"
+	visibilityX := 1192 - textWidth(r.metaFace, visibilityLabel)
+	drawCircle(canvas, image.Pt(visibilityX-17, 104), 6, color.RGBA{63, 185, 80, 255})
+	r.drawText(canvas, r.metaFace, color.RGBA{139, 158, 193, 255}, visibilityX, 111, visibilityLabel)
+	drawLine(canvas, image.Pt(88, 166), image.Pt(1192, 166), color.RGBA{106, 129, 170, 52})
 
-	drawAvatar(canvas, avatar, repository.Owner, image.Rect(92, 184, 236, 328))
+	drawAvatar(canvas, avatar, repository.Owner, image.Rect(90, 216, 202, 328))
+	r.drawText(canvas, r.metaFace, color.RGBA{126, 174, 255, 255}, 234, 220, "github.com/"+sanitizeForFace(r.metaFace, repository.Owner))
 	title := sanitizeForFace(r.titleFace, repository.FullName)
-	title = truncateToWidth(r.titleFace, title, 870)
-	r.drawText(canvas, r.titleFace, color.RGBA{248, 250, 255, 255}, 278, 225, title)
+	title = truncateToWidth(r.titleFace, title, 920)
+	r.drawText(canvas, r.titleFace, color.RGBA{248, 250, 255, 255}, 234, 278, title)
 
 	description := strings.TrimSpace(repository.Description)
 	if description == "" {
 		description = "A GitHub repository shared from Starcat."
 	}
 	description = sanitizeForFace(r.descriptionFace, description)
-	lines := wrapText(r.descriptionFace, description, 850, 2)
+	lines := wrapText(r.descriptionFace, description, 900, 2)
 	for index, line := range lines {
-		r.drawText(canvas, r.descriptionFace, color.RGBA{177, 190, 218, 255}, 278, 277+index*42, line)
+		r.drawText(canvas, r.descriptionFace, color.RGBA{174, 188, 213, 255}, 234, 326+index*40, line)
 	}
 
-	metaY := 446
-	metaX := 94
+	metaY := 464
+	metaX := 92
 	if repository.Language != "" {
 		languageColor := languageDotColor(repository.Language)
-		drawCircle(canvas, image.Pt(metaX+8, metaY-6), 7, languageColor)
+		drawCircle(canvas, image.Pt(metaX+8, metaY-7), 7, languageColor)
 		metaX += 27
-		r.drawText(canvas, r.metaFace, color.RGBA{215, 225, 246, 255}, metaX, metaY, sanitizeForFace(r.metaFace, repository.Language))
+		r.drawText(canvas, r.metaFace, color.RGBA{220, 228, 242, 255}, metaX, metaY, sanitizeForFace(r.metaFace, repository.Language))
 		metaX += textWidth(r.metaFace, repository.Language) + 54
+	} else {
+		drawCircle(canvas, image.Pt(metaX+8, metaY-7), 7, color.RGBA{91, 107, 135, 255})
+		metaX += 27
+		language := "Language not detected"
+		r.drawText(canvas, r.metaFace, color.RGBA{139, 155, 183, 255}, metaX, metaY, language)
+		metaX += textWidth(r.metaFace, language) + 54
 	}
 
-	r.drawText(canvas, r.metaFace, color.RGBA{115, 174, 255, 255}, metaX, metaY, "★")
-	metaX += 31
+	drawStarGlyph(canvas, image.Pt(metaX+9, metaY-9), 9, color.RGBA{139, 162, 201, 255})
+	metaX += 29
 	stars := compactNumber(repository.Stars)
-	r.drawText(canvas, r.metaFace, color.RGBA{215, 225, 246, 255}, metaX, metaY, stars)
-	metaX += textWidth(r.metaFace, stars) + 54
-	r.drawText(canvas, r.metaFace, color.RGBA{115, 174, 255, 255}, metaX, metaY, "FORK")
-	metaX += 66
-	r.drawText(canvas, r.metaFace, color.RGBA{215, 225, 246, 255}, metaX, metaY, compactNumber(repository.Forks))
+	starLabel := stars + " stars"
+	r.drawText(canvas, r.metaFace, color.RGBA{220, 228, 242, 255}, metaX, metaY, starLabel)
+	metaX += textWidth(r.metaFace, starLabel) + 54
+	drawForkGlyph(canvas, image.Pt(metaX+8, metaY-9), color.RGBA{139, 162, 201, 255})
+	metaX += 29
+	r.drawText(canvas, r.metaFace, color.RGBA{220, 228, 242, 255}, metaX, metaY, compactNumber(repository.Forks)+" forks")
 
 	status := "PUBLIC"
 	if repository.Archived {
@@ -131,8 +163,9 @@ func (r *OGRenderer) Render(repository model.RepositoryPreview, avatar image.Ima
 	} else if repository.Template {
 		status = "TEMPLATE"
 	}
-	drawStatusPill(canvas, r.metaFace, 92, 505, status)
-	r.drawText(canvas, r.metaFace, color.RGBA{128, 149, 190, 255}, 1010, 536, "starcat.ink")
+	drawStatusPill(canvas, r.metaFace, 92, 514, status)
+	footerLabel := "starcat.ink"
+	r.drawText(canvas, r.metaFace, color.RGBA{128, 149, 190, 255}, 1192-textWidth(r.metaFace, footerLabel), 540, footerLabel)
 
 	var output bytes.Buffer
 	if err := png.Encode(&output, canvas); err != nil {
@@ -201,6 +234,15 @@ func insideRoundedRect(x, y int, rect image.Rectangle, radius int) bool {
 	}
 	dx, dy := x-cx, y-cy
 	return dx*dx+dy*dy <= radius*radius
+}
+
+// drawImageFit 将品牌图标缩放到固定区域。图标自身已包含圆角和透明边缘，
+// 这里不再额外裁切，避免破坏正式 App Icon 的玻璃质感。
+func drawImageFit(dst *image.RGBA, source image.Image, rect image.Rectangle) {
+	if source == nil {
+		return
+	}
+	xdraw.CatmullRom.Scale(dst, rect, source, source.Bounds(), draw.Over, nil)
 }
 
 func drawAvatar(dst *image.RGBA, source image.Image, owner string, rect image.Rectangle) {
@@ -313,6 +355,21 @@ func compactNumber(value int) string {
 }
 
 func languageDotColor(language string) color.RGBA {
+	// 常见语言使用 GitHub 用户熟悉的颜色，并与 repository.html 保持一致。
+	known := map[string]color.RGBA{
+		"Swift":      {240, 81, 56, 255},
+		"Go":         {0, 173, 216, 255},
+		"JavaScript": {241, 224, 90, 255},
+		"TypeScript": {49, 120, 198, 255},
+		"Python":     {53, 114, 165, 255},
+		"Rust":       {222, 165, 132, 255},
+		"Kotlin":     {169, 123, 255, 255},
+		"Java":       {176, 114, 25, 255},
+		"C++":        {243, 75, 125, 255},
+	}
+	if value, ok := known[language]; ok {
+		return value
+	}
 	colors := []color.RGBA{
 		{49, 120, 255, 255}, {62, 207, 142, 255}, {255, 174, 62, 255},
 		{245, 99, 126, 255}, {101, 192, 255, 255}, {183, 127, 255, 255},
@@ -362,6 +419,21 @@ func drawStarGlyph(dst *image.RGBA, center image.Point, radius int, ink color.RG
 			}
 		}
 	}
+}
+
+// drawForkGlyph 使用简单节点与连线绘制 Git fork 语义，避免用 "FORK" 文本冒充图标。
+// 坐标围绕 center 设计为 18×18，可与 Star 和语言色点保持同一视觉重量。
+func drawForkGlyph(dst *image.RGBA, center image.Point, ink color.RGBA) {
+	left := image.Pt(center.X-5, center.Y-5)
+	right := image.Pt(center.X+5, center.Y-5)
+	bottom := image.Pt(center.X, center.Y+6)
+	drawLine(dst, left, image.Pt(left.X, center.Y), ink)
+	drawLine(dst, right, image.Pt(right.X, center.Y), ink)
+	drawLine(dst, image.Pt(left.X, center.Y), image.Pt(right.X, center.Y), ink)
+	drawLine(dst, image.Pt(center.X, center.Y), bottom, ink)
+	drawCircle(dst, left, 3, ink)
+	drawCircle(dst, right, 3, ink)
+	drawCircle(dst, bottom, 3, ink)
 }
 
 func abs(value int) int {

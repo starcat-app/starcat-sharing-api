@@ -72,8 +72,12 @@ func TestRepositoryPageContainsServerRenderedOGMetadata(t *testing.T) {
 	body := recorder.Body.String()
 	for _, expected := range []string{
 		`property="og:title" content="starcat-app/Starcat"`,
-		`property="og:image" content="https://starcat.ink/og/repo/starcat-app/Starcat.png?rev=99"`,
+		`property="og:image" content="https://starcat.ink/og/repo/starcat-app/Starcat.png?rev=v2-99"`,
 		`href="starcat://repo/starcat-app/Starcat?rid=99&amp;v=1"`,
+		`class="brand-logo" src="/r/starcat-logo.png"`,
+		`<strong>Swift</strong>`,
+		`<strong>1.2k</strong> stars`,
+		`<strong>42</strong> forks`,
 	} {
 		if !strings.Contains(body, expected) {
 			t.Fatalf("missing %q in HTML", expected)
@@ -81,6 +85,27 @@ func TestRepositoryPageContainsServerRenderedOGMetadata(t *testing.T) {
 	}
 	if strings.Contains(body, `<script>alert`) {
 		t.Fatal("repository description must be HTML escaped")
+	}
+}
+
+func TestRepositoryPageShowsMissingLanguageWithoutInventingMetadata(t *testing.T) {
+	handler := newRepositoryTestHandler(t, fakeRepositorySource{repository: model.RepositoryPreview{
+		ID:       100,
+		Owner:    "example",
+		Name:     "docs-only",
+		FullName: "example/docs-only",
+		HTMLURL:  "https://github.com/example/docs-only",
+	}})
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /r/{owner}/{repo}", handler.HandleRepositoryPage)
+
+	recorder := httptest.NewRecorder()
+	mux.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/r/example/docs-only", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("want 200, got %d", recorder.Code)
+	}
+	if !strings.Contains(recorder.Body.String(), "Language not detected") {
+		t.Fatal("missing honest fallback for repositories without a primary language")
 	}
 }
 
