@@ -93,6 +93,14 @@ go run ./cmd/server/
 
 所有数据接口需要 `Authorization: Bearer <api-key>` 头。
 
+### `GET /api/v1/ping`（需鉴权）
+
+返回服务标识，以及由发布 tag 注入的构建版本：
+
+```json
+{"schema_version":1,"data":{"service":"sharing","version":"1.2.3","ok":true}}
+```
+
 ### `POST /api/v1/share`（需鉴权）
 
 创建分享链接。

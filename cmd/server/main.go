@@ -17,6 +17,7 @@ import (
 	"github.com/starcat-app/starcat-sharing-api/internal/handler"
 	"github.com/starcat-app/starcat-sharing-api/internal/middleware"
 	"github.com/starcat-app/starcat-sharing-api/internal/store"
+	"github.com/starcat-app/starcat-sharing-api/internal/version"
 )
 
 func main() {
@@ -79,7 +80,7 @@ func main() {
 	mux.HandleFunc("GET /s/{id}", shareHandler.HandleRenderShare)
 	// R-03 (2026-06-11): /api/v1/ping 专门给 Starcat 客户端「测试连接」按钮用，
 	// 在 middleware 后面挂——同时验证服务可达 + Bearer Key 正确。详见 handler/ping.go。
-	mux.Handle("GET /api/v1/ping", authMW.Wrap(handler.HandlePingV1("sharing")))
+	mux.Handle("GET /api/v1/ping", authMW.Wrap(handler.HandlePingV1(version.Service, version.Version)))
 	mux.Handle("POST /api/v1/share", authMW.Wrap(http.HandlerFunc(shareHandler.HandleCreateShareV1)))
 	mux.Handle("GET /internal/stats", authMW.Wrap(handler.HandleStats(sqliteStore)))
 
@@ -93,7 +94,7 @@ func main() {
 		os.Exit(0)
 	}()
 
-	log.Printf("starcat-sharing-api starting on port %s", port)
+	log.Printf("starcat-sharing-api %s starting on port %s", version.Version, port)
 	log.Printf("Endpoints:")
 	log.Printf("  GET  /api/v1/ping   - Connectivity probe for Starcat client (auth required)")
 	log.Printf("  POST /api/v1/share  - Create share link (auth required)")

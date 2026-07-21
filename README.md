@@ -93,6 +93,14 @@ The default port is `5001`.
 
 All data endpoints require the `Authorization: Bearer <api-key>` header.
 
+### `GET /api/v1/ping` (Authentication Required)
+
+Returns the service identity and the build version injected from the release tag:
+
+```json
+{"schema_version":1,"data":{"service":"sharing","version":"1.2.3","ok":true}}
+```
+
 ### `POST /api/v1/share` (Authentication Required)
 
 Creates a share link.
