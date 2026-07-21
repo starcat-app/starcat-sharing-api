@@ -72,10 +72,12 @@ func TestRepositoryPageContainsServerRenderedOGMetadata(t *testing.T) {
 	body := recorder.Body.String()
 	for _, expected := range []string{
 		`property="og:title" content="starcat-app/Starcat"`,
-		`property="og:image" content="https://starcat.ink/og/repo/starcat-app/Starcat.png?rev=v2-99"`,
+		`property="og:image" content="https://starcat.ink/og/repo/starcat-app/Starcat.png?rev=v3-99"`,
 		`href="starcat://repo/starcat-app/Starcat?rid=99&amp;v=1"`,
 		`class="brand-logo" src="/r/starcat-logo.png"`,
 		`<strong>Swift</strong>`,
+		`class="star-icon"`,
+		`class="fork-icon"`,
 		`<strong>1.2k</strong> stars`,
 		`<strong>42</strong> forks`,
 	} {

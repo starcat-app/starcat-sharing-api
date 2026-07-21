@@ -28,7 +28,7 @@ import (
 	"github.com/starcat-app/starcat-sharing-api/internal/render"
 )
 
-const repositoryOGLayoutVersion = "2"
+const repositoryOGLayoutVersion = "3"
 
 var (
 	ownerPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)

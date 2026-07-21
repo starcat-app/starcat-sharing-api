@@ -147,7 +147,7 @@ func (r *OGRenderer) Render(repository model.RepositoryPreview, avatar image.Ima
 		metaX += textWidth(r.metaFace, language) + 54
 	}
 
-	drawStarGlyph(canvas, image.Pt(metaX+9, metaY-9), 9, color.RGBA{139, 162, 201, 255})
+	drawStarGlyph(canvas, image.Pt(metaX+9, metaY-9), 9, color.RGBA{242, 204, 96, 255})
 	metaX += 29
 	stars := compactNumber(repository.Stars)
 	starLabel := stars + " stars"
@@ -424,16 +424,17 @@ func drawStarGlyph(dst *image.RGBA, center image.Point, radius int, ink color.RG
 // drawForkGlyph 使用简单节点与连线绘制 Git fork 语义，避免用 "FORK" 文本冒充图标。
 // 坐标围绕 center 设计为 18×18，可与 Star 和语言色点保持同一视觉重量。
 func drawForkGlyph(dst *image.RGBA, center image.Point, ink color.RGBA) {
-	left := image.Pt(center.X-5, center.Y-5)
-	right := image.Pt(center.X+5, center.Y-5)
+	left := image.Pt(center.X-5, center.Y-6)
+	right := image.Pt(center.X+5, center.Y-6)
 	bottom := image.Pt(center.X, center.Y+6)
-	drawLine(dst, left, image.Pt(left.X, center.Y), ink)
-	drawLine(dst, right, image.Pt(right.X, center.Y), ink)
-	drawLine(dst, image.Pt(left.X, center.Y), image.Pt(right.X, center.Y), ink)
-	drawLine(dst, image.Pt(center.X, center.Y), bottom, ink)
-	drawCircle(dst, left, 3, ink)
-	drawCircle(dst, right, 3, ink)
-	drawCircle(dst, bottom, 3, ink)
+	joinY := center.Y
+	drawLine(dst, image.Pt(left.X, left.Y+2), image.Pt(left.X, joinY), ink)
+	drawLine(dst, image.Pt(right.X, right.Y+2), image.Pt(right.X, joinY), ink)
+	drawLine(dst, image.Pt(left.X, joinY), image.Pt(right.X, joinY), ink)
+	drawLine(dst, image.Pt(center.X, joinY), image.Pt(center.X, bottom.Y-2), ink)
+	drawCircle(dst, left, 2, ink)
+	drawCircle(dst, right, 2, ink)
+	drawCircle(dst, bottom, 2, ink)
 }
 
 func abs(value int) int {
