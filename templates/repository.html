@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <meta name="description" content="{{.Description}}">
+  <link rel="canonical" href="{{.CanonicalURL}}">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Starcat">
+  <meta property="og:title" content="{{.Repository.FullName}}">
+  <meta property="og:description" content="{{.Description}}">
+  <meta property="og:url" content="{{.CanonicalURL}}">
+  <meta property="og:image" content="{{.OGImageURL}}">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="Starcat repository preview for {{.Repository.FullName}}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{.Repository.FullName}}">
+  <meta name="twitter:description" content="{{.Description}}">
+  <meta name="twitter:image" content="{{.OGImageURL}}">
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f6f8ff;
+      --muted: #aebad3;
+      --quiet: #7485a8;
+      --blue: #4f8cff;
+      --blue-strong: #2470ff;
+      --line: rgba(130, 170, 255, .2);
+      --panel: rgba(13, 23, 43, .88);
+      --panel-strong: #101d35;
+      --background: #050b18;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 82% 14%, rgba(38, 112, 255, .2), transparent 33rem),
+        linear-gradient(145deg, #040914 0%, #071126 48%, #091832 100%);
+      font-family: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .25;
+      background-image:
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 78%);
+    }
+
+    .shell {
+      width: min(960px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 42px 0 56px;
+    }
+
+    .masthead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 74px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 31px;
+      height: 31px;
+      border-radius: 50%;
+      color: white;
+      background: var(--blue-strong);
+      box-shadow: 0 0 0 5px rgba(36, 112, 255, .1);
+    }
+
+    .eyebrow {
+      color: var(--quiet);
+      font: 600 12px/1.2 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .repo-card {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(28px, 5vw, 58px);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(17, 31, 57, .96), rgba(9, 18, 36, .94));
+      box-shadow: 0 34px 90px rgba(0, 0, 0, .34);
+    }
+
+    .repo-card::after {
+      content: "";
+      position: absolute;
+      width: 280px;
+      height: 280px;
+      top: -170px;
+      right: -110px;
+      border: 1px solid rgba(100, 158, 255, .18);
+      border-radius: 50%;
+      box-shadow: 0 0 0 44px rgba(87, 145, 255, .035), 0 0 0 88px rgba(87, 145, 255, .025);
+    }
+
+    .identity {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .avatar {
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,.16);
+      background: #163365;
+    }
+
+    .avatar-fallback {
+      display: grid;
+      place-items: center;
+      font: 700 34px/1 "Iowan Old Style", Georgia, serif;
+      color: #dce8ff;
+    }
+
+    h1 {
+      max-width: 720px;
+      margin: 0;
+      overflow-wrap: anywhere;
+      font: 600 clamp(34px, 6vw, 62px)/1.03 "Iowan Old Style", Georgia, serif;
+      letter-spacing: -.035em;
+    }
+
+    .description {
+      max-width: 680px;
+      margin: 20px 0 0;
+      color: var(--muted);
+      font-size: clamp(15px, 2vw, 18px);
+      line-height: 1.7;
+    }
+
+    .meta {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 42px;
+    }
+
+    .datum {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid rgba(133, 171, 242, .16);
+      border-radius: 8px;
+      color: #d8e3fa;
+      background: rgba(255,255,255,.035);
+      font: 600 12px/1 "SFMono-Regular", Consolas, monospace;
+      letter-spacing: .025em;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4f8cff;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid rgba(137, 174, 243, .22);
+      border-radius: 9px;
+      color: var(--ink);
+      background: rgba(255,255,255,.045);
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .button.primary {
+      border-color: var(--blue-strong);
+      background: var(--blue-strong);
+      box-shadow: 0 12px 30px rgba(36,112,255,.25);
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(137, 174, 243, .55);
+      background: rgba(255,255,255,.08);
+    }
+
+    .button.primary:hover { background: #3b7dff; }
+
+    .unavailable {
+      margin-top: 22px;
+      padding: 12px 14px;
+      border-left: 3px solid #ff9f43;
+      color: #f2d6b6;
+      background: rgba(255, 159, 67, .08);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      margin-top: 24px;
+      color: var(--quiet);
+      font-size: 12px;
+    }
+
+    footer a { color: #91b7ff; text-decoration: none; }
+
+    @media (max-width: 640px) {
+      .shell { width: min(100% - 24px, 960px); padding-top: 24px; }
+      .masthead { margin-bottom: 34px; }
+      .eyebrow { display: none; }
+      .repo-card { border-radius: 17px; }
+      .identity { grid-template-columns: 58px minmax(0, 1fr); gap: 18px; }
+      .avatar { width: 58px; height: 58px; }
+      .description { margin-top: 14px; }
+      .meta { margin-top: 28px; }
+      .actions { flex-direction: column; }
+      .button { width: 100%; }
+      footer { flex-direction: column; gap: 8px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .button { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <a class="brand" href="https://starcat.ink" aria-label="Starcat home">
+        <span class="brand-mark" aria-hidden="true">★</span>
+        <span>Starcat</span>
+      </a>
+      <span class="eyebrow">Repository field note / public metadata</span>
+    </header>
+
+    <article class="repo-card">
+      <div class="identity">
+        {{if .Repository.AvatarURL}}
+          <img class="avatar" src="{{.Repository.AvatarURL}}" alt="{{.Repository.Owner}} avatar" width="92" height="92">
+        {{else}}
+          <div class="avatar avatar-fallback" aria-hidden="true">★</div>
+        {{end}}
+        <div>
+          <h1>{{.Repository.FullName}}</h1>
+          <p class="description">{{.Description}}</p>
+        </div>
+      </div>
+
+      {{if .Available}}
+      <div class="meta" aria-label="Repository statistics">
+        {{if .Repository.Language}}<span class="datum"><span class="dot"></span>{{.Repository.Language}}</span>{{end}}
+        <span class="datum">★ {{.StarsText}}</span>
+        <span class="datum">FORK {{.ForksText}}</span>
+        {{if .Repository.Archived}}<span class="datum">ARCHIVED</span>{{end}}
+        {{if .Repository.Template}}<span class="datum">TEMPLATE</span>{{end}}
+      </div>
+      {{else}}
+      <p class="unavailable">This repository does not exist or is not publicly available. Starcat does not reveal whether a private repository exists.</p>
+      {{end}}
+    </article>
+
+    <nav class="actions" aria-label="Repository actions">
+      {{if .Available}}<a class="button primary" href="{{.OpenAppURL}}">Open in Starcat</a>{{end}}
+      {{if .GitHubURL}}<a class="button" href="{{.GitHubURL}}" rel="noopener noreferrer">View on GitHub</a>{{end}}
+      <a class="button" href="{{.DownloadURL}}">Download Starcat</a>
+    </nav>
+
+    <footer>
+      <span>Shared with Starcat. No notes, tags, or account data are included.</span>
+      <a href="https://starcat.ink">Turn GitHub Stars into a knowledge base →</a>
+    </footer>
+  </main>
+</body>
+</html>

@@ -11,11 +11,15 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 
+	"github.com/starcat-app/starcat-sharing-api/internal/cache"
+	githubclient "github.com/starcat-app/starcat-sharing-api/internal/github"
 	"github.com/starcat-app/starcat-sharing-api/internal/handler"
 	"github.com/starcat-app/starcat-sharing-api/internal/middleware"
+	"github.com/starcat-app/starcat-sharing-api/internal/render"
 	"github.com/starcat-app/starcat-sharing-api/internal/store"
 	"github.com/starcat-app/starcat-sharing-api/internal/version"
 )
@@ -53,6 +57,10 @@ func main() {
 	}
 	apiKeys := strings.Split(apiKeysStr, ",")
 
+	// GITHUB_TOKENS: 公开仓库预览使用。允许本地匿名启动，但生产环境应配置
+	// token pool，避免聊天平台 crawler 消耗 GitHub 匿名额度。
+	githubTokens := strings.Split(os.Getenv("GITHUB_TOKENS"), ",")
+
 	// 初始化 SQLite store
 	sqliteStore, err := store.NewSQLiteStore(storeFile)
 	if err != nil {
@@ -73,11 +81,28 @@ func main() {
 
 	// 装配 handler
 	shareHandler := handler.NewShareHandler(sqliteStore, templates, baseURL)
+	repositoryRenderer, err := render.NewOGRenderer()
+	if err != nil {
+		log.Fatalf("Failed to initialize repository OG renderer: %v", err)
+	}
+	repositoryHandler, err := handler.NewRepositoryHandler(
+		githubclient.NewClient(os.Getenv("GITHUB_API_BASE_URL"), githubTokens),
+		cache.NewRepositoryCache(time.Hour, 512),
+		repositoryRenderer,
+		templates,
+		baseURL,
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize repository preview handler: %v", err)
+	}
 
 	// 注册路由（Go 1.22+ 风格）
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler)
 	mux.HandleFunc("GET /s/{id}", shareHandler.HandleRenderShare)
+	mux.HandleFunc("GET /r/{owner}/{repo}", repositoryHandler.HandleRepositoryPage)
+	// Go ServeMux wildcard 必须占完整 segment，因此 `.png` 后缀由 handler 校验。
+	mux.HandleFunc("GET /og/repo/{owner}/{repo}", repositoryHandler.HandleRepositoryOG)
 	// R-03 (2026-06-11): /api/v1/ping 专门给 Starcat 客户端「测试连接」按钮用，
 	// 在 middleware 后面挂——同时验证服务可达 + Bearer Key 正确。详见 handler/ping.go。
 	mux.Handle("GET /api/v1/ping", authMW.Wrap(handler.HandlePingV1(version.Service, version.Version)))
@@ -100,6 +125,8 @@ func main() {
 	log.Printf("  POST /api/v1/share  - Create share link (auth required)")
 	log.Printf("  GET  /internal/stats - Share statistics (auth required)")
 	log.Printf("  GET  /s/{id}        - View share page (public)")
+	log.Printf("  GET  /r/{owner}/{repo} - View public repository preview")
+	log.Printf("  GET  /og/repo/{owner}/{repo}.png - Repository Open Graph image")
 	log.Printf("  GET  /healthz       - Health check (public)")
 	handler := middleware.CORS(mux)
 	log.Fatal(http.ListenAndServe(":"+port, handler))

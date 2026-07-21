@@ -61,6 +61,8 @@ Backend service for the Starcat app that generates and hosts AI-powered share pa
 
 - **Share link generation**: Accepts repository data and AI summaries and generates unique short links (`POST /api/v1/share`, authentication required)
 - **Share page rendering**: Renders share pages with Go `html/template` and Tailwind CSS when a short link is opened (`GET /s/{id}`, public)
+- **Canonical repository links**: Server-renders public repository landing pages by `owner/repo` (`GET /r/{owner}/{repo}`, public and stateless)
+- **Open Graph images**: Generates `1280×640` repository PNG cards (`GET /og/repo/{owner}/{repo}.png`, public)
 - **Data persistence**: Uses SQLite in WAL mode instead of the legacy `data.json` file
 
 ## Quick Start
@@ -88,6 +90,7 @@ The default port is `5001`.
 | `STORE_FILE` | SQLite database path | `./sharing.db` |
 | `BASE_URL` | Base URL for short links | `http://localhost:5001` |
 | `API_KEYS` | Bearer Token allowlist (comma-separated) | Required |
+| `GITHUB_TOKENS` | GitHub PAT pool used by public repository previews | Optional locally, required in production |
 
 ## API Endpoints
 
@@ -151,6 +154,14 @@ Creates a share link.
 
 Returns the rendered HTML share page. Returns 404 if the share does not exist.
 
+### `GET /r/{owner}/{repo}` (Public)
+
+Reads public GitHub metadata and includes complete Open Graph metadata in the initial HTML response. Canonical repository links do not create share IDs or write to `sharing.db`.
+
+### `GET /og/repo/{owner}/{repo}.png` (Public)
+
+Returns a `1280×640 image/png`. Missing repositories, GitHub rate limits, and avatar failures fall back to a non-leaking Starcat repository card.
+
 ### `GET /healthz` (Public)
 
 Health check that returns `ok`.
@@ -170,6 +181,7 @@ bash ../scripts/gen-api-key.sh
 ```bash
 fly secrets set \
   API_KEYS="sk-starcat-prodKey1,sk-starcat-prodKey2" \
+  GITHUB_TOKENS="ghp_token1,ghp_token2" \
   BASE_URL="https://starcat.ink" \
   STORE_FILE="/data/sharing.db" \
   -a starcat-sharing-api

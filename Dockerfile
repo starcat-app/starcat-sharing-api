@@ -11,7 +11,7 @@ ARG VERSION=0.0.0-dev
 WORKDIR /app
 
 # 先复制依赖文件, 利用 Docker 缓存
-# 当前项目零外部依赖 (无 go.sum), 但保留模式以防将来引入
+# 先复制 go.mod / go.sum，避免业务源码变化导致每次都重新下载依赖。
 COPY go.mod go.sum* ./
 RUN go mod download
 

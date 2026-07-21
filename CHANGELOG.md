@@ -8,6 +8,10 @@
 ## [Unreleased]
 
 ### Added
+- **Canonical repository sharing (2026-07-21)**：新增公开 `/r/{owner}/{repo}` 服务端落地页和 `/og/repo/{owner}/{repo}.png` 动态 Open Graph 卡片。
+  - 复用 quota-aware `GITHUB_TOKENS` pool，并增加有界 TTL cache 与并发请求合并。
+  - 基础仓库链接保持无状态，不创建 share ID、不写入现有 `sharing.db`。
+  - 仓库不存在、私有无权限和 GitHub 限流均使用不泄密 fallback 页面/图片。
 - **R-03 (2026-06-11)**：新增 `GET /api/v1/ping` 端点，专给 Starcat 客户端「测试连接」按钮用。
   - 走 BearerAuth 中间件，鉴权通过返回 200 + envelope `{data: {service: "sharing", ok: true}}`；
     无效 / 缺失 Key → 401；服务故障 → 5xx。
