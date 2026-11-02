@@ -73,7 +73,7 @@ Backend service for the Starcat app that generates and hosts AI-powered share pa
 
 ### Requirements
 
-- Go 1.25+
+- Go 1.26.10+
 
 ### Run Locally
 

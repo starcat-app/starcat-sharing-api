@@ -9,7 +9,7 @@ Starcat 分享页后端：接收 Repo 数据与 AI 摘要，生成短链（`POST
 
 ## 技术栈
 
-- Go 1.25.0 · `net/http`（无第三方 HTTP 框架）
+- Go 1.26.10 · `net/http`（无第三方 HTTP 框架）
 - `github.com/joho/godotenv` · `modernc.org/sqlite`
 - `github.com/starcat-app/starcat-api-kit` v0.3.0（auth / envelope / metrics 等）
 - `golang.org/x/image`（OG PNG 渲染）
