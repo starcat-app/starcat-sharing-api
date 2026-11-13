@@ -118,9 +118,9 @@ jobs:
 
           mkdir -p dist
           if [ "${ARCHIVE}" = "zip" ]; then
-            (cd dist && zip -q "${BINARY_NAME}_${GOOS}_${GOARCH}.zip" "../${OUTPUT}")
+            zip -q "dist/${BINARY_NAME}_${GOOS}_${GOARCH}.zip" "${OUTPUT}" THIRD_PARTY_NOTICES.md
           else
-            tar -C . -czf "dist/${BINARY_NAME}_${GOOS}_${GOARCH}.tar.gz" "${OUTPUT}"
+            tar -C . -czf "dist/${BINARY_NAME}_${GOOS}_${GOARCH}.tar.gz" "${OUTPUT}" THIRD_PARTY_NOTICES.md
           fi
           rm "${OUTPUT}"
 

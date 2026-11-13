@@ -99,6 +99,13 @@ The default port is `5001`.
 
 ## API Endpoints
 
+DailyRadar reports use a separate immutable snapshot API:
+`POST /api/v1/daily-radar/shares` (Bearer authentication, multipart JSON + PNG).
+Public pages live at `/d/{id}` with `hero.webp` and `hero.png` assets. The snapshot
+identity is report ID, language, and revision; changed content under the same
+identity returns 409. See [the API and backup guide](docs/daily-radar-sharing.md)
+for limits, snake_case fields, migration behavior, and paired database/asset backups.
+
 All data endpoints require the `Authorization: Bearer <api-key>` header.
 
 ### `GET /api/v1/ping` (Authentication Required)

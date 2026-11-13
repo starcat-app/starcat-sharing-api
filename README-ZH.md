@@ -99,6 +99,12 @@ go run ./cmd/server/
 
 ## API 接口
 
+每日热点报告使用独立的不可变快照接口：
+`POST /api/v1/daily-radar/shares`（Bearer 鉴权，multipart JSON + PNG）。
+公开页为 `/d/{id}`，并提供 `hero.webp`、`hero.png` 资产。身份由报告 ID、语言与
+revision 共同确定，同身份内容变化返回 409。大小限制、snake_case 字段、迁移与
+数据库/资产成套备份见 [接口与备份说明](docs/daily-radar-sharing.md)。
+
 所有数据接口需要 `Authorization: Bearer <api-key>` 头。
 
 ### `GET /api/v1/ping`（需鉴权）

@@ -48,6 +48,7 @@ WORKDIR /app
 
 # 从 builder 阶段复制编译产物
 COPY --from=builder /app/bin/server /app/server
+COPY --from=builder /app/THIRD_PARTY_NOTICES.md /app/THIRD_PARTY_NOTICES.md
 
 # 切换到非 root 用户
 USER app

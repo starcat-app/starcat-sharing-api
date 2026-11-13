@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -41,6 +42,7 @@ type Options struct {
 	APIKeys                []string
 	GithubTokens           []string
 	GithubAPIBaseURL       string
+	DailyRadarAssetDir     string
 	SkipListenLogEndpoints bool
 }
 
@@ -65,13 +67,14 @@ func FromEnv() (*Service, error) {
 		return nil, fmt.Errorf("API_KEYS env is required (comma-separated list of valid API keys)")
 	}
 	opt := Options{
-		Port:             kitenv.OrDefault("PORT", defaultPort),
-		StoreFile:        kitenv.OrDefault("STORE_FILE", defaultStoreFile),
-		MetricsStoreFile: kitenv.OrDefault("METRICS_STORE_FILE", "./sharing-metrics.db"),
-		BaseURL:          kitenv.OrDefault("BASE_URL", defaultBaseURL),
-		APIKeys:          apiKeys,
-		GithubTokens:     kitenv.CSV(os.Getenv("GITHUB_TOKENS")),
-		GithubAPIBaseURL: strings.TrimSpace(os.Getenv("GITHUB_API_BASE_URL")),
+		Port:               kitenv.OrDefault("PORT", defaultPort),
+		StoreFile:          kitenv.OrDefault("STORE_FILE", defaultStoreFile),
+		MetricsStoreFile:   kitenv.OrDefault("METRICS_STORE_FILE", "./sharing-metrics.db"),
+		BaseURL:            kitenv.OrDefault("BASE_URL", defaultBaseURL),
+		APIKeys:            apiKeys,
+		GithubTokens:       kitenv.CSV(os.Getenv("GITHUB_TOKENS")),
+		GithubAPIBaseURL:   strings.TrimSpace(os.Getenv("GITHUB_API_BASE_URL")),
+		DailyRadarAssetDir: strings.TrimSpace(os.Getenv("DAILY_RADAR_ASSET_DIR")),
 	}
 	return New(opt)
 }
@@ -126,6 +129,15 @@ func New(opt Options) (*Service, error) {
 	githubRepos := githubclient.NewClient(opt.GithubAPIBaseURL, opt.GithubTokens)
 	repoCache := cache.NewRepositoryCache(time.Hour, 512)
 	shareHandler := handler.NewShareHandler(sqliteStore, tmpl, opt.BaseURL, githubRepos, repoCache)
+	if strings.TrimSpace(opt.DailyRadarAssetDir) == "" {
+		opt.DailyRadarAssetDir = filepath.Join(filepath.Dir(opt.StoreFile), "daily-radar")
+	}
+	dailyRadarHandler, err := handler.NewDailyRadarHandler(sqliteStore, tmpl, opt.BaseURL, opt.DailyRadarAssetDir)
+	if err != nil {
+		_ = metricsCollector.Close()
+		_ = sqliteStore.Close()
+		return nil, fmt.Errorf("initialize daily radar sharing: %w", err)
+	}
 	repositoryRenderer, err := render.NewOGRenderer()
 	if err != nil {
 		_ = metricsCollector.Close()
@@ -148,12 +160,19 @@ func New(opt Options) (*Service, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthzHandler)
 	mux.HandleFunc("GET /s/{id}", shareHandler.HandleRenderShare)
+	mux.HandleFunc("GET /d/{id}", dailyRadarHandler.HandlePage)
+	mux.HandleFunc("GET /d/{id}/hero.webp", dailyRadarHandler.HandleHero)
+	mux.HandleFunc("GET /d/{id}/hero.png", func(w http.ResponseWriter, r *http.Request) {
+		r.SetPathValue("format", "png")
+		dailyRadarHandler.HandleHero(w, r)
+	})
 	mux.HandleFunc("GET /r/starcat-logo.png", starcatLogoHandler)
 	mux.HandleFunc("GET /r/fonts/{file}", shareFontHandler)
 	mux.HandleFunc("GET /r/{owner}/{repo}", repositoryHandler.HandleRepositoryPage)
 	mux.HandleFunc("GET /og/repo/{owner}/{repo}", repositoryHandler.HandleRepositoryOG)
 	mux.Handle("GET /api/v1/ping", authMW.Wrap(handler.HandlePingV1(version.Service, version.Version)))
 	mux.Handle("POST /api/v1/share", authMW.Wrap(http.HandlerFunc(shareHandler.HandleCreateShareV1)))
+	mux.Handle("POST /api/v1/daily-radar/shares", authMW.Wrap(http.HandlerFunc(dailyRadarHandler.HandleCreate)))
 	mux.Handle("GET /internal/stats", authMW.Wrap(handler.HandleStats(sqliteStore)))
 	mux.Handle("GET /internal/shares", authMW.Wrap(handler.HandleShareActivity(sqliteStore)))
 	mux.Handle("GET /internal/metrics/summary", authMW.Wrap(http.HandlerFunc(metricsHandler.HandleSummary)))
@@ -168,6 +187,8 @@ func New(opt Options) (*Service, error) {
 		log.Printf("  POST /api/v1/share  - Create share link (auth required)")
 		log.Printf("  GET  /internal/stats - Share statistics (auth required)")
 		log.Printf("  GET  /s/{id}        - View share page (public)")
+		log.Printf("  POST /api/v1/daily-radar/shares - Create immutable report share (auth required)")
+		log.Printf("  GET  /d/{id}        - View daily radar snapshot and hero assets (public)")
 		log.Printf("  GET  /r/{owner}/{repo} - View public repository preview")
 		log.Printf("  GET  /og/repo/{owner}/{repo}.png - Repository Open Graph image")
 		log.Printf("  GET  /healthz       - Health check (public)")
