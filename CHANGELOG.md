@@ -7,6 +7,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- 每日热点报告快照分享：新增 `POST /api/v1/daily-radar/shares` 与公开 `/d/{id}` 页面、WebP/PNG 封面，按报告身份幂等创建并拒绝覆盖已分享内容。
+- 独立报告与资产表、追加式迁移和成套备份工具，保留已有 Repo 分享数据与接口。
+
+### Changed
+
+- 每日热点公开页随 `starcat-api` 聚合部署，官网 `/d/` 转发已接通；后续页面样式在本仓模板中迭代。
+
 ### Security
 
 - 升级 Go 工具链至 1.26.10，同步 CI、发布与 Docker 构建，并在 CI 检查已知可达漏洞。

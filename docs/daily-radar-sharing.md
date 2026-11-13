@@ -1,5 +1,9 @@
 # 每日热点快照分享
 
+2026-11-13 已实现并随 `starcat-api` 聚合部署，dong4j 已确认功能完成。
+四仓代码均已合回各自本地 `dev`；后续公开页展示样式在本仓嵌入的 HTML/CSS
+模板中优化，仅调整页面样式不需要修改或重新发布 Starcat 客户端。
+
 ## 接口
 
 创建使用 `POST /api/v1/daily-radar/shares`，复用 Bearer 鉴权，每个有效 token 每分钟
@@ -109,13 +113,20 @@ go test ./internal/render -run '^TestDailyRadarHeroClientFixture$' -v -count=1
 go test ./internal/render -run '^$' -bench '^BenchmarkDailyRadarHero$' -benchtime=3x -benchmem
 ```
 
-客户端相关自动测试共 45 项通过（Swift Testing 38 项、XCTest 构图测试 7 项）。
+实现期客户端相关自动测试共 45 项通过（Swift Testing 38 项、XCTest 构图测试 7 项）。
 `make build-direct` 与 `make build-appstore` 均通过构建和渠道产物校验，未启动 App。
 17 种语言已补齐配置并核对编译资源；除英文与简中外保留 `needs_review`，
-母语审核和真实 GUI 长文案布局仍待验收。浏览器移动端、分享平台 OG 抓取及
-staging / production 尚未验收，本次没有发布。
+母语审核和真实 GUI 长文案布局仍待验收。
 
-聚合服务使用 sibling replace 验证本地源码。`dependencies.json` 必须在业务仓变更
-获准提交后锁到对应完整 SHA；工作区尚未提交时不得伪造发布锁或宣称可部署。
-授权部署后顺序为：备份 → 固定提交构建 → staging → 真实报告与浏览器/OG 验收 →
+2026-11-13 后续已按授权以聚合提交 `db6800e5` 部署生产，`dependencies.json`
+固定本仓 `e98d51a5912426a00031698c343c342decb8e0fb`。真实报告创建、幂等、
+冲突、匿名页面与 WebP/PNG 响应冒烟通过，官网 `/d/` 转发已生效；
+合入 `dev` 后客户端 10 项定向测试通过，dong4j 确认功能完成。
+移动浏览器、WebP 不支持环境的回退和社交平台 OG debugger 仍未单独实测。
+部署前的一致性备份已从专项 worktree 保留到主工作区，并通过 SHA-256
+及 SQLite 完整性校验。本轮文档与分支收尾不重新部署。
+
+聚合服务使用 sibling replace 验证本地源码。后续变更仍必须获准提交后再更新
+`dependencies.json` 的完整 SHA；工作区未提交时不得伪造发布锁或宣称已部署。
+后续授权部署按以下顺序执行：备份 → 固定提交构建 → staging → 真实报告与浏览器/OG 验收 →
 production 与 `/d/` 转发。旧 `/api/v1/share`、`/s/{id}`、`/r/` 回归也须通过。
