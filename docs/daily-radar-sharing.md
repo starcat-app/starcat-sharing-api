@@ -60,7 +60,7 @@ OG 使用绝对 PNG URL。正常响应为一年 immutable 缓存，撤销后回�
 配置的 API host 访问，不需要把 Bearer token 放到公开 URL。
 
 新编码器的许可见 `THIRD_PARTY_NOTICES.md`。该依赖只进入服务端，客户端继续用系统
-ImageIO，不引入编码库。固定版本的 Go directive 为 1.26.4，满足本仓 1.26.10 基线；
+ImageIO，不引入编码库。固定版本的 Go directive 为 1.26.4，满足本仓 1.26.11 基线；
 具体质量、大小与内存以本仓验收测试为准，不用上游基准替代产品封面实测。
 2026-11-13 核对上游 tags 与默认分支：`v0.2.2` 指向
 `5022b0c7dc7a2d7fc4ed83889af5f0cf9ca523e3`，也是当时最新提交，
