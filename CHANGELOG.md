@@ -18,6 +18,7 @@
 
 ### Security
 
+- 将构建工具链和 Docker 镜像升级至 Go 1.26.11，包含最新 Go 1.26 安全修复。
 - 升级 Go 工具链至 1.26.10，同步 CI、发布与 Docker 构建，并在 CI 检查已知可达漏洞。
 - 将 `golang.org/x/image` 升至 v0.45.0、`golang.org/x/text` 升至 v0.41.0，及上游要求的 `golang.org/x/sys` v0.47.0，修补依赖中的已知漏洞。
 

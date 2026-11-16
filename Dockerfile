@@ -3,7 +3,7 @@
 # ===========================================
 # 与 starcat-trending-api / starcat-weekly-api 保持一致的多阶段构建
 # Go 版本与项目 go.mod 保持一致。
-FROM golang:1.26.10-alpine AS builder
+FROM golang:1.26.11-alpine AS builder
 
 ENV GOTOOLCHAIN=local
 

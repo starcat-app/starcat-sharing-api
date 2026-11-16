@@ -1,6 +1,6 @@
 module github.com/starcat-app/starcat-sharing-api
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/gen2brain/vpx v0.2.2
