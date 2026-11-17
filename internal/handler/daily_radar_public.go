@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	dailyRadarPageCache      = "public, max-age=0, must-revalidate"
 	dailyRadarImmutableCache = "public, max-age=31536000, immutable"
 	dailyRadarMissingCache   = "public, max-age=60"
 )
@@ -69,7 +70,8 @@ func (h *DailyRadarHandler) HandlePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", dailyRadarImmutableCache)
+	// 内容快照不变，但页面模板会更新；HTML 必须重新校验，图片仍可长期缓存。
+	w.Header().Set("Cache-Control", dailyRadarPageCache)
 	if r.Method != http.MethodHead {
 		if err = h.store.RecordDailyRadarVisit(r.Context(), share.ID); err != nil {
 			log.Printf("[daily-radar] visit count failed share=%s: %v", share.ID, err)

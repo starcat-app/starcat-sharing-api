@@ -171,17 +171,25 @@ func TestDailyRadarCreateAndPublicRoundTrip(t *testing.T) {
 	for _, route := range []string{"", "/hero.webp", "/hero.png"} {
 		public := httptest.NewRecorder()
 		router.ServeHTTP(public, httptest.NewRequest(http.MethodGet, "/d/"+response.Data.ShareID+route, nil))
-		if public.Code != 200 || public.Header().Get("Cache-Control") != dailyRadarImmutableCache ||
+		expectedCache := dailyRadarImmutableCache
+		if route == "" {
+			expectedCache = "public, max-age=0, must-revalidate"
+		}
+		if public.Code != 200 || public.Header().Get("Cache-Control") != expectedCache ||
 			public.Header().Get("X-Content-Type-Options") != "nosniff" {
 			t.Fatalf("public route %s: %d %v", route, public.Code, public.Header())
 		}
 		if route == "" {
 			text := public.Body.String()
 			for _, expected := range []string{"<picture>", response.Data.HeroPNGURL, "noindex, nofollow",
-				"starcat-app/Starcat", `rel="noopener noreferrer"`, "https://example.com/news", "&lt;script&gt;"} {
+				`class="card" href="https://github.com/starcat-app/Starcat" target="_blank" rel="noopener noreferrer"`,
+				"https://example.com/news", "&lt;script&gt;"} {
 				if !strings.Contains(text, expected) {
 					t.Errorf("missing %q", expected)
 				}
+			}
+			if logos := strings.Count(text, `src="/r/starcat-logo.png"`); logos != 2 {
+				t.Errorf("expected official logo in header and footer, got %d", logos)
 			}
 			if strings.Contains(text, "<script>") || strings.Contains(text, "javascript:") || public.Header().Get("Set-Cookie") != "" {
 				t.Fatal("unsafe HTML or tracking cookie in public snapshot")
