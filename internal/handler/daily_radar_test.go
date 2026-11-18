@@ -1,9 +1,10 @@
-// 本文件覆盖真实上传、幂等、冲突、公开读取与事务失败清理，避免只测试 DTO。
+// 本文件覆盖真实上传、跨用户复用、公开读取与事务失败清理，避免只测试 DTO。
 package handler
 
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"html/template"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,7 +33,20 @@ import (
 type dailyRadarTestStore struct {
 	DailyRadarStore
 	failInsert bool
+	failLookup bool
 	revoked    bool
+	afterFind  func(error)
+}
+
+func (s *dailyRadarTestStore) FindDailyRadar(ctx context.Context, reportID, language, revision string) (*model.DailyRadarShare, error) {
+	if s.failLookup {
+		return nil, errors.New("simulated lookup failure with internal path")
+	}
+	share, err := s.DailyRadarStore.FindDailyRadar(ctx, reportID, language, revision)
+	if s.afterFind != nil {
+		s.afterFind(err)
+	}
+	return s.withRevocation(share, err)
 }
 
 func (s *dailyRadarTestStore) InsertDailyRadar(ctx context.Context, share model.DailyRadarShare) error {
@@ -43,6 +58,10 @@ func (s *dailyRadarTestStore) InsertDailyRadar(ctx context.Context, share model.
 
 func (s *dailyRadarTestStore) GetDailyRadar(ctx context.Context, id string) (*model.DailyRadarShare, error) {
 	share, err := s.DailyRadarStore.GetDailyRadar(ctx, id)
+	return s.withRevocation(share, err)
+}
+
+func (s *dailyRadarTestStore) withRevocation(share *model.DailyRadarShare, err error) (*model.DailyRadarShare, error) {
 	if err == nil && s.revoked {
 		now := time.Now()
 		share.RevokedAt = &now
@@ -78,8 +97,9 @@ func newDailyRadarTestHandler(t *testing.T) (*DailyRadarHandler, http.Handler, *
 		t.Fatal(err)
 	}
 	mux := http.NewServeMux()
-	mux.Handle("POST /api/v1/daily-radar/shares",
-		middleware.NewBearerAuth([]string{"test-token", "second-token"}).Wrap(http.HandlerFunc(handler.HandleCreate)))
+	auth := middleware.NewBearerAuth([]string{"test-token", "second-token"})
+	mux.Handle("POST /api/v1/daily-radar/shares", auth.Wrap(http.HandlerFunc(handler.HandleCreate)))
+	mux.Handle("GET /api/v1/daily-radar/shares", auth.Wrap(http.HandlerFunc(handler.HandleLookup)))
 	mux.HandleFunc("GET /d/{id}", handler.HandlePage)
 	mux.HandleFunc("GET /d/{id}/hero.webp", handler.HandleHero)
 	mux.HandleFunc("GET /d/{id}/hero.png", func(w http.ResponseWriter, r *http.Request) {
@@ -129,8 +149,16 @@ func dailyRadarMultipart(t *testing.T, snapshot model.DailyRadarRequest, hero []
 	return request
 }
 
+// 查询只需要身份，且第二位分享者使用与首发不同的 token。
+func dailyRadarLookup(report model.DailyRadarReport) *http.Request {
+	query := url.Values{"report_id": {report.ID}, "language": {report.Language}, "revision": {report.Revision}}
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/daily-radar/shares?"+query.Encode(), nil)
+	request.Header.Set("Authorization", "Bearer second-token")
+	return request
+}
+
 func TestDailyRadarCreateAndPublicRoundTrip(t *testing.T) {
-	_, router, storage, root := newDailyRadarTestHandler(t)
+	handler, router, storage, root := newDailyRadarTestHandler(t)
 	snapshot, uploaded := dailyRadarTestSnapshot(), dailyRadarTestPNG(t)
 	first := httptest.NewRecorder()
 	router.ServeHTTP(first, dailyRadarMultipart(t, snapshot, uploaded))
@@ -147,26 +175,40 @@ func TestDailyRadarCreateAndPublicRoundTrip(t *testing.T) {
 	if response.SchemaVersion != 1 || response.Data.AlreadyExists || response.Data.ShareID == "" {
 		t.Fatalf("invalid response: %+v", response)
 	}
-	again := httptest.NewRecorder()
-	router.ServeHTTP(again, dailyRadarMultipart(t, snapshot, uploaded))
-	var repeated struct {
-		Data model.DailyRadarShareResponse `json:"data"`
+	publishedPNG, err := os.ReadFile(filepath.Join(root, response.Data.ShareID, "hero.png"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	_ = json.Unmarshal(again.Body.Bytes(), &repeated)
-	if again.Code != 200 || !repeated.Data.AlreadyExists || repeated.Data.ShareID != response.Data.ShareID {
-		t.Fatalf("idempotence failed: %d %s", again.Code, again.Body.String())
+	// 首发完成后，查询及老客户端重复提交都应直接返回同一快照，不进入图片编码。
+	handler.encode = func(context.Context, []byte) (render.DailyRadarHero, error) {
+		t.Fatal("existing report was sent for encoding")
+		return render.DailyRadarHero{}, nil
 	}
+	expected := response.Data
+	expected.AlreadyExists = true
+	assertReused := func(request *http.Request) {
+		t.Helper()
+		result := httptest.NewRecorder()
+		router.ServeHTTP(result, request)
+		var repeated struct {
+			Data model.DailyRadarShareResponse `json:"data"`
+		}
+		if err := json.Unmarshal(result.Body.Bytes(), &repeated); err != nil ||
+			result.Code != 200 || repeated.Data != expected || result.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("reuse failed: %d %s (%v)", result.Code, result.Body.String(), err)
+		}
+	}
+	assertReused(dailyRadarLookup(snapshot.Report))
+	assertReused(dailyRadarMultipart(t, snapshot, uploaded))
 	for _, mutate := range []func(*model.DailyRadarRequest, *[]byte){
 		func(request *model.DailyRadarRequest, _ *[]byte) { request.Report.Summary = "different content" },
 		func(_ *model.DailyRadarRequest, hero *[]byte) { *hero = append(*hero, 0) },
 	} {
 		changed, hero := dailyRadarTestSnapshot(), bytes.Clone(uploaded)
 		mutate(&changed, &hero)
-		conflict := httptest.NewRecorder()
-		router.ServeHTTP(conflict, dailyRadarMultipart(t, changed, hero))
-		if conflict.Code != 409 || !strings.Contains(conflict.Body.String(), "SHARE_CONFLICT") {
-			t.Fatalf("snapshot was overwritten: %d %s", conflict.Code, conflict.Body.String())
-		}
+		request := dailyRadarMultipart(t, changed, hero)
+		request.Header.Set("Authorization", "Bearer second-token")
+		assertReused(request)
 	}
 	for _, route := range []string{"", "/hero.webp", "/hero.png"} {
 		public := httptest.NewRecorder()
@@ -181,7 +223,7 @@ func TestDailyRadarCreateAndPublicRoundTrip(t *testing.T) {
 		}
 		if route == "" {
 			text := public.Body.String()
-			for _, expected := range []string{"<picture>", response.Data.HeroPNGURL, "noindex, nofollow",
+			for _, expected := range []string{"<picture>", response.Data.HeroPNGURL, "noindex, nofollow", snapshot.Report.Summary,
 				`class="card" href="https://github.com/starcat-app/Starcat" target="_blank" rel="noopener noreferrer"`,
 				"https://example.com/news", "&lt;script&gt;"} {
 				if !strings.Contains(text, expected) {
@@ -198,6 +240,8 @@ func TestDailyRadarCreateAndPublicRoundTrip(t *testing.T) {
 			if _, err := webp.DecodeConfig(bytes.NewReader(public.Body.Bytes())); err != nil {
 				t.Fatalf("invalid public WebP: %v", err)
 			}
+		} else if !bytes.Equal(public.Body.Bytes(), publishedPNG) {
+			t.Fatal("the published PNG changed after reuse")
 		}
 	}
 	entries, _ := os.ReadDir(root)
@@ -205,12 +249,51 @@ func TestDailyRadarCreateAndPublicRoundTrip(t *testing.T) {
 		t.Fatalf("duplicate or temporary assets remain: %d", len(entries))
 	}
 	storage.revoked = true
+	for _, request := range []*http.Request{dailyRadarLookup(snapshot.Report), dailyRadarMultipart(t, snapshot, uploaded)} {
+		result := httptest.NewRecorder()
+		router.ServeHTTP(result, request)
+		if result.Code != 409 || !strings.Contains(result.Body.String(), "SHARE_REVOKED") {
+			t.Fatalf("revoked report was reusable: %d %s", result.Code, result.Body.String())
+		}
+	}
 	for _, route := range []string{"", "/hero.webp", "/hero.png"} {
 		gone := httptest.NewRecorder()
 		router.ServeHTTP(gone, httptest.NewRequest("GET", "/d/"+response.Data.ShareID+route, nil))
 		if gone.Code != 410 || gone.Header().Get("Cache-Control") != dailyRadarMissingCache {
 			t.Fatalf("revoked route %s was served: %d", route, gone.Code)
 		}
+	}
+}
+
+func TestDailyRadarLookupDistinguishesMissAndErrors(t *testing.T) {
+	_, router, storage, _ := newDailyRadarTestHandler(t)
+	report := dailyRadarTestSnapshot().Report
+	for _, test := range []struct {
+		name    string
+		request *http.Request
+		status  int
+		code    string
+	}{
+		{"missing identity", dailyRadarLookup(model.DailyRadarReport{}), 400, "BAD_REQUEST"},
+		{"missing snapshot", dailyRadarLookup(report), 404, "DAILY_RADAR_SHARE_NOT_FOUND"},
+		{"database failure", dailyRadarLookup(report), 500, "INTERNAL_ERROR"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			storage.failLookup = test.status == 500
+			result := httptest.NewRecorder()
+			router.ServeHTTP(result, test.request)
+			if result.Code != test.status || result.Header().Get("Cache-Control") != "no-store" ||
+				!strings.Contains(result.Body.String(), test.code) || strings.Contains(result.Body.String(), "internal path") {
+				t.Fatalf("lookup: %d %v %s", result.Code, result.Header(), result.Body.String())
+			}
+		})
+	}
+	request := dailyRadarLookup(report)
+	request.Header.Del("Authorization")
+	result := httptest.NewRecorder()
+	router.ServeHTTP(result, request)
+	if result.Code != 401 {
+		t.Fatalf("lookup accepted missing auth: %d", result.Code)
 	}
 }
 
@@ -277,25 +360,42 @@ func TestDailyRadarAuthRateLimitsAndMissingPage(t *testing.T) {
 }
 
 func TestDailyRadarConcurrentDuplicateLeavesOneAssetDirectory(t *testing.T) {
-	handler, router, _, root := newDailyRadarTestHandler(t)
+	handler, router, storage, root := newDailyRadarTestHandler(t)
 	handler.encode = func(context.Context, []byte) (render.DailyRadarHero, error) {
 		return render.DailyRadarHero{WebP: []byte("webp"), PNG: []byte("png")}, nil
+	}
+	// 让两次请求都先读到未发布，再由唯一索引裁决，稳定覆盖插入失败后的回查。
+	var firstReads sync.WaitGroup
+	firstReads.Add(2)
+	storage.afterFind = func(err error) {
+		if errors.Is(err, sql.ErrNoRows) {
+			firstReads.Done()
+			firstReads.Wait()
+		}
 	}
 	uploaded := dailyRadarTestPNG(t)
 	requests := []*http.Request{
 		dailyRadarMultipart(t, dailyRadarTestSnapshot(), uploaded),
-		dailyRadarMultipart(t, dailyRadarTestSnapshot(), uploaded),
+		dailyRadarMultipart(t, dailyRadarTestSnapshot(), append(bytes.Clone(uploaded), 0)),
 	}
+	requests[1].Header.Set("Authorization", "Bearer second-token")
 	results := []*httptest.ResponseRecorder{httptest.NewRecorder(), httptest.NewRecorder()}
 	var workers sync.WaitGroup
 	for index := range requests {
 		workers.Go(func() { router.ServeHTTP(results[index], requests[index]) })
 	}
 	workers.Wait()
-	for _, result := range results {
-		if result.Code != 200 {
-			t.Fatalf("duplicate failed: %d %s", result.Code, result.Body.String())
+	var shares [2]struct {
+		Data model.DailyRadarShareResponse `json:"data"`
+	}
+	for index, result := range results {
+		if err := json.Unmarshal(result.Body.Bytes(), &shares[index]); err != nil || result.Code != 200 {
+			t.Fatalf("duplicate failed: %d %s (%v)", result.Code, result.Body.String(), err)
 		}
+	}
+	if shares[0].Data.ShareID == "" || shares[0].Data.ShareID != shares[1].Data.ShareID ||
+		shares[0].Data.AlreadyExists == shares[1].Data.AlreadyExists {
+		t.Fatalf("concurrent shares diverged: %+v", shares)
 	}
 	entries, _ := os.ReadDir(root)
 	if len(entries) != 1 {

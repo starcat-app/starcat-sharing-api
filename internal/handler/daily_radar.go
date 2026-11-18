@@ -1,4 +1,4 @@
-// 本文件实现日报快照上传。鉴权复用 server 的 Bearer middleware，创建限额按 token hash 隔离。
+// 本文件实现日报快照查询与上传。鉴权复用 server 的 Bearer middleware，创建限额按 token hash 隔离。
 package handler
 
 import (
@@ -95,7 +95,28 @@ func (h *DailyRadarHandler) allowCreate(token string, now time.Time) bool {
 	return true
 }
 
-// HandleCreate 校验完输入再处理图片；重复身份也必须比对两个 hash，绝不覆盖既有快照。
+// HandleLookup 按公开报告身份复用首发快照，客户端无需上传正文或封面即可获取链接。
+func (h *DailyRadarHandler) HandleLookup(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
+	query := r.URL.Query()
+	reportID, language, revision := query.Get("report_id"), query.Get("language"), query.Get("revision")
+	if !validDailyRadarIdentity(reportID, language, revision) {
+		writeError(w, http.StatusBadRequest, "BAD_REQUEST", "Invalid report identity.", nil)
+		return
+	}
+	share, err := h.store.FindDailyRadar(r.Context(), reportID, language, revision)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		writeError(w, http.StatusNotFound, "DAILY_RADAR_SHARE_NOT_FOUND", "This report revision has not been shared.", nil)
+	case err != nil:
+		log.Printf("[daily-radar] lookup failed: %v", err)
+		writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Unable to look up this report share. Please try again.", nil)
+	default:
+		h.respondExisting(w, share)
+	}
+}
+
+// HandleCreate 校验上传；同一报告身份以首发为准，封面或正文差异不改变已发布快照。
 func (h *DailyRadarHandler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if !h.allowCreate(r.Header.Get("Authorization"), time.Now()) {
@@ -108,21 +129,21 @@ func (h *DailyRadarHandler) HandleCreate(w http.ResponseWriter, r *http.Request)
 		h.writeFailure(w, status, err)
 		return
 	}
-	canonical, err := json.Marshal(request)
-	if err != nil {
-		h.writeFailure(w, http.StatusBadRequest, err)
-		return
-	}
-	contentHash, heroHash := dailyRadarHash(canonical), dailyRadarHash(uploaded)
 	existing, err := h.store.FindDailyRadar(r.Context(), request.Report.ID, request.Report.Language, request.Report.Revision)
 	if err == nil {
-		h.respondExisting(w, existing, contentHash, heroHash)
+		h.respondExisting(w, existing)
 		return
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		h.writeFailure(w, http.StatusInternalServerError, err)
 		return
 	}
+	canonical, err := json.Marshal(request)
+	if err != nil {
+		h.writeFailure(w, http.StatusBadRequest, err)
+		return
+	}
+	contentHash, heroHash := dailyRadarHash(canonical), dailyRadarHash(uploaded)
 
 	// 严格尺寸已限制单次工作量；单槽进一步避免多 token 同时编码将常驻服务内存成倍放大。
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
@@ -170,7 +191,7 @@ func (h *DailyRadarHandler) HandleCreate(w http.ResponseWriter, r *http.Request)
 		// 两个并发首发可能都先查到空；唯一索引只准一个成功，失败方删除自己的独立目录。
 		existing, lookupErr := h.store.FindDailyRadar(r.Context(), request.Report.ID, request.Report.Language, request.Report.Revision)
 		if lookupErr == nil {
-			h.respondExisting(w, existing, contentHash, heroHash)
+			h.respondExisting(w, existing)
 		} else {
 			h.writeFailure(w, http.StatusInternalServerError, err)
 		}
@@ -215,13 +236,11 @@ func (h *DailyRadarHandler) publishAssets(share *model.DailyRadarShare, hero ren
 	return os.Rename(temporary, filepath.Join(h.assetDir, share.ID))
 }
 
-func (h *DailyRadarHandler) respondExisting(w http.ResponseWriter, share *model.DailyRadarShare, contentHash, heroHash string) {
-	if share.RevokedAt != nil || share.ContentHash != contentHash || share.HeroHash != heroHash {
-		writeError(w, http.StatusConflict, "SHARE_CONFLICT", "This report revision already has a different snapshot.", nil)
+func (h *DailyRadarHandler) respondExisting(w http.ResponseWriter, share *model.DailyRadarShare) {
+	if share.RevokedAt != nil {
+		writeError(w, http.StatusConflict, "SHARE_REVOKED", "The share for this report revision has been revoked.", nil)
 		return
 	}
-	log.Printf("[daily-radar] idempotent report=%s language=%s revision=%s",
-		share.Request.Report.ID, share.Request.Report.Language, share.Request.Report.Revision)
 	writeJSON(w, h.response(share, true))
 }
 
@@ -321,16 +340,14 @@ func multipartErrorStatus(err error) int {
 // validateDailyRadarRequest 只校验公开快照，不读取 GitHub、用户仓库库或任何个人设置。
 func validateDailyRadarRequest(request model.DailyRadarRequest) (int, error) {
 	report := request.Report
-	for _, value := range []string{report.ID, report.Language, report.Revision, report.Title, report.Markdown} {
-		if strings.TrimSpace(value) == "" {
-			return 400, errors.New("missing required report field")
-		}
+	if !validDailyRadarIdentity(report.ID, report.Language, report.Revision) {
+		return 400, errors.New("invalid report identity")
+	}
+	if strings.TrimSpace(report.Title) == "" || strings.TrimSpace(report.Markdown) == "" {
+		return 400, errors.New("missing required report field")
 	}
 	if len(report.Markdown) > 1<<20 {
 		return 413, errors.New("markdown exceeds 1 MB")
-	}
-	if len(report.ID) > 512 || len(report.Language) > 64 || len(report.Revision) > 256 {
-		return 400, errors.New("invalid report identity")
 	}
 	if _, err := time.Parse("2006-01-02", report.Date); err != nil || report.ReadingMinutes < 0 {
 		return 400, errors.New("invalid report date or reading time")
@@ -353,4 +370,10 @@ func validateDailyRadarRequest(request model.DailyRadarRequest) (int, error) {
 		}
 	}
 	return 200, nil
+}
+
+// 查询与创建接受相同的身份，保留原始值以匹配已经落库的键。
+func validDailyRadarIdentity(reportID, language, revision string) bool {
+	return len(reportID) <= 512 && len(language) <= 64 && len(revision) <= 256 &&
+		strings.TrimSpace(reportID) != "" && strings.TrimSpace(language) != "" && strings.TrimSpace(revision) != ""
 }
